@@ -48,7 +48,7 @@ class PokeBattle_Battler
         # Choice Items
         if effectActive?(:ChoiceBand)
             choiceItem = nil
-            CHOICE_LOCKING_ITEMS.each do |choiceLockItem|
+            GameData::Item.getByFlag("ChoiceLocking").each do |choiceLockItem|
                 next unless hasActiveItem?(choiceLockItem)
                 choiceItem = choiceLockItem
                 break
@@ -69,7 +69,7 @@ GameData::Move.get(@effects[:ChoiceBand]).name)
         end
         # Gorilla Tactics
         if effectActive?(:GorillaTactics)
-            choiceLockingAbility = hasActiveAbility?(CHOICE_LOCKING_ABILITIES)
+            choiceLockingAbility = hasActiveAbility?(GameData::Ability.getByFlag("ChoiceLocking"))
             if choiceLockingAbility
                 if move.id != @effects[:GorillaTactics]
                     msg = _INTL("{1} allows the use of only {2}!", getAbilityName(choiceLockingAbility),
@@ -125,7 +125,7 @@ GameData::Move.get(@effects[:GorillaTactics]).name)
         # Assault Vest and Strike Vest (prevents choosing status moves but doesn't prevent
         # executing them)
         if move.statusMove? && commandPhase
-            statusPreventingItem = hasActiveItem?(STATUS_PREVENTING_ITEMS)
+            statusPreventingItem = hasActiveItem?(GameData::Item.getByFlag("NoStatusUse"))
             if statusPreventingItem
                 msg = _INTL("The effects of the {1} prevent status moves from being used!", getItemName(statusPreventingItem))
                 if showMessages
@@ -204,7 +204,7 @@ GameData::Move.get(@effects[:GorillaTactics]).name)
         return true if skipAccuracyCheck
 
         # Check status problems and continue their effects/cure them
-        if pbHasStatus?(:SLEEP)
+        if asleep?
             if aiCheck
                 if willStayAsleepAI? && !move.usableWhenAsleep?
                     echoln("\t\t[AI FAILURE CHECK] #{pbThis} rejects the move #{move.id} due to it being predicted to stay asleep this turn")
@@ -419,7 +419,7 @@ animationName, show_message) do
             @battle.triggerImmunityDialogue(user, target, true) if showMessages
             return true
         end
-        if airborneImmunity?(user, target, move, showMessages)
+        if airborneImmunity?(user, target, move, showMessages, aiCheck)
             PBDebug.log("[Target immune] #{target.pbThis}'s immunity due to being airborne")
             return true
         end
@@ -442,9 +442,9 @@ target.pbThis(true)))
         return false
     end
 
-    def airborneImmunity?(user, target, move, showMessages = true)
+    def airborneImmunity?(user, target, move, showMessages = true, aiCheck = false)
         # Airborne-based immunity to Ground moves
-        if move.damagingMove? && move.calcType == :GROUND && target.airborne? && !move.hitsFlyingTargets?
+        if move.damagingMove?(aiCheck) && move.calcType == :GROUND && target.airborne? && !move.hitsFlyingTargets?
             levitationAbility = target.hasLevitate?
             if levitationAbility && !@battle.moldBreaker
                 if showMessages
@@ -455,7 +455,7 @@ target.pbThis(true)))
                 end
                 return true
             end
-            LEVITATION_ITEMS.each do |levitationItem|
+            GameData::Item.getByFlag("Levitation").each do |levitationItem|
                 if target.hasActiveItem?(levitationItem)
                     if showMessages
                         @battle.pbDisplay(_INTL("{1}'s {2} makes Ground moves miss!", target.pbThis, getItemName(levitationItem)))
@@ -519,8 +519,8 @@ target.pbThis(true)))
         end
     end
 
-    def onMoveFailed(move)
-        @lastMoveFailed = true
+    def onMoveFailed(move, affectsTrackers = true)
+        @lastMoveFailed = true if affectsTrackers
         # Slap stick
         eachOpposing do |b|
             next unless b.hasActiveAbility?(:SLAPSTICK)

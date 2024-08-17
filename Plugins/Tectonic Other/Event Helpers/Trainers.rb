@@ -1,13 +1,9 @@
-def battlePerfected?
-	return $game_switches[94]
-end
-
-def perfectTrainer(maxTrainerLevel=15)
+def perfectTrainer(maxTrainerLevel=15,giveDrop=true)
 	blackFadeOutIn() {
 		setMySwitch('D',true)
 		setFollowerGone
 	}
-	pbTrainerDropsItem(maxTrainerLevel)
+	pbTrainerDropsItem(maxTrainerLevel) if giveDrop
 end
 
 def perfectAncientTrainer
@@ -15,7 +11,7 @@ def perfectAncientTrainer
 		setMySwitch('D',true)
 		setFollowerGone
 	}
-	pbMessage("The fleeing trainer dropped some food!")
+	pbMessage(_INTL("The fleeing trainer dropped some food!"))
 	pbReceiveItem(:VANILLATULUMBA)
 end
 
@@ -57,7 +53,7 @@ def perfectDoubleAncientTrainer(event1,event2)
 		setFollowerGone(event2)
 	}
 
-	pbMessage("The fleeing trainers dropped some food!")
+	pbMessage(_INTL("The fleeing trainers dropped some food!"))
 	pbReceiveItem(:VANILLATULUMBA,2)
 end
 
@@ -71,15 +67,15 @@ def pbTrainerDropsItem(maxTrainerLevel = 15,multiplier=1,plural=false)
 	end
 	if total == 1
 		if plural
-			pbMessage("One of the fleeing trainers dropped a candy!")
+			pbMessage(_INTL("One of the fleeing trainers dropped a candy!"))
 		else
-			pbMessage("The fleeing trainer dropped a candy!")
+			pbMessage(_INTL("The fleeing trainer dropped a candy!"))
 		end
 	else
 		if plural
-			pbMessage("The fleeing trainers dropped some candies!")
+			pbMessage(_INTL("The fleeing trainers dropped some candies!"))
 		else
-			pbMessage("The fleeing trainer dropped some candies!")
+			pbMessage(_INTL("The fleeing trainer dropped some candies!"))
 		end
 	end
 	
@@ -125,7 +121,7 @@ def candiesForLevel(level)
   when 71..100
 	itemsGiven = [:EXPCANDYXL,1] # 64_000
   else
-	pbMessage("Unassigned level passed to pbTrainerDropsItem: #{maxTrainerLevel}") if $DEBUG
+	pbMessage(_INTL("Unassigned level passed to pbTrainerDropsItem: #{maxTrainerLevel}")) if $DEBUG
 	itemsGiven = [:EXPCANDYXS,2] # 500
   end
   return itemsGiven
@@ -171,23 +167,28 @@ def forcePlayerBackwards
 	@move_route_waiting = true if !$game_temp.in_battle # Wait for move route completion
 end
 
-def setFollowerInactive(eventId=0)
+def sendOutPokemon(eventID, switch_id = "A")
+	showPokeballExit(eventID)
+	pbSetSelfSwitch(eventID,switch_id,true)
+end
+
+def setFollowerInactive(eventId=0,switch='A')
 	followers = getFollowerPokemon(eventId)
 	if followers.nil? || followers.length == 0
-		pbMessage("ERROR: Could not find follower Pokemon!") if $DEBUG
+		pbMessage(_INTL("ERROR: Could not find follower Pokemon!")) if $DEBUG
 		return
 	end
 	followers.each do |follower|
 		showBallReturn(follower.x,follower.y)
 		pbWait(Graphics.frame_rate/10)
-		pbSetSelfSwitch(follower.id,'A',true)
+		pbSetSelfSwitch(follower.id,switch,true)
 	end
 end
 
 def setFollowerGone(eventId=0)
 	followers = getFollowerPokemon(eventId)
 	if followers.nil? || followers.length == 0
-		pbMessage("ERROR: Could not find follower Pokemon!") if $DEBUG
+		pbMessage(_INTL("ERROR: Could not find follower Pokemon!")) if $DEBUG
 		return
 	end
 	followers.each do |follower|
@@ -239,9 +240,11 @@ def allEventsExclaim(eventIDArray)
 	end
 end
 
-def wildBattlersFlee(eventIDArray)
-	allEventsExclaim(eventIDArray)
-	pbWait(20)
+def wildBattlersFlee(eventIDArray,exclaim = true)
+	if exclaim
+		allEventsExclaim(eventIDArray)
+		pbWait(20)
+	end
 	blackFadeOutIn {
 		pbSEPlay('Battle flee')
 		eventIDArray.each do |id|
@@ -252,24 +255,79 @@ end
 
 # Replace placeholder overworld follower sprites
 Events.onMapChange += proc { |_sender,*args|
-	for event in $game_map.events.values
-		match = event.name.match(/follower\(:([a-zA-Z0-9_]+),"(.+)"(?:,([0-9]+))?(?:,([0-9]+))?\)/)
+	followerEventGraphicSwap
+}
+
+# follower(:TRAINER_TYPE,"Trainer Name", VERSION_NUMBER, PARTY_INDEX*)
+AUTO_FOLLOWER_NAME_FLAG_REGEX = /follower\(:([a-zA-Z0-9_]+),"(.+)"(?:,([0-9]+))?(?:,([0-9]+))?\)/
+
+# villainfollower(VILLAIN_NUMBER, FIGHT_NUMBER, PARTY_INDEX*)
+RANDOM_NPC_FOLLOWER_NAME_FLAG_REGEX = /randomnpcfollower\((?:([0-9]+)),(?:([0-9]+))(?:,([0-9]+))?\)/
+
+# Followers where the trainer info is in the name
+def eachAutoFollowerInMap
+    for event in $game_map.events.values
+		match = event.name.match(AUTO_FOLLOWER_NAME_FLAG_REGEX)
 		next unless match
+        yield event, match
+    end
+end
 
-		# Parse the event name
-		trainerClass = match[1].to_sym
-		trainerName = match[2]
-		trainerVersion = match[3].to_i || 0
-		partyIndex = match[4].to_i || 0
+def eachRandomNPCAutoFollowerInMap
+    for event in $game_map.events.values
+		match = event.name.match(RANDOM_NPC_FOLLOWER_NAME_FLAG_REGEX)
+		next unless match
+        yield event, match
+    end
+end
 
+def eachTrainerWithAutoFollowerInMap
+    eachAutoFollowerInMap do |event, match|
+        cursed = event.name.match(/cursedfollower/)
+
+        # Parse the event name
+        trainerClass = match[1].to_sym
+        trainerName = match[2]
+        trainerVersion = match[3].to_i || 0
+        partyIndex = match[4].to_i || 0
+
+        # Don't use the cursed version if it doesnt actually exist
+        if cursed && tarotAmuletActive? && GameData::Trainer.try_get(trainerClass, trainerName, trainerVersion + 1)
+            trainerVersion += 1
+        end
+
+        trainer = pbLoadTrainer(trainerClass, trainerName, trainerVersion)
+
+        yield event, trainer, partyIndex
+    end
+
+    eachRandomNPCAutoFollowerInMap do |event, match|
+        # Parse the event name
+        villainNumber = match[1].to_i
+        fightVersion = match[2].to_i || 0
+        trainerClass, trainerName, trainerVersion = getRandomNPCTrainerDetails(villainNumber,fightVersion)
+        partyIndex = match[3].to_i || 0
+
+        trainer = pbLoadTrainer(trainerClass, trainerName, trainerVersion)
+
+        yield event, trainer, partyIndex
+    end
+end
+
+def followerEventGraphicSwap(reset = false)
+    eachTrainerWithAutoFollowerInMap do |event, trainer, partyIndex|
 		# Find the pokemon that the event represents
-		pokemon = pbLoadTrainer(trainerClass,trainerName,trainerVersion).displayPokemonAtIndex(partyIndex)
+		pokemon = trainer.displayPokemonAtIndex(partyIndex)
 
 		newPages = {}
 
 		# Find all the pages that need to be replaced
 		event.event.pages.each_with_index do |page,pageIndex|
-			next unless page.graphic.character_name == "00Overworld Placeholder"
+			if reset
+				next unless page.graphic.character_name.include?("Followers")
+			else
+				next unless page.graphic.character_name == "00Overworld Placeholder"
+			end
 			newPages[pageIndex] = createPokemonInteractionEventPage(pokemon,page)
 		end
 
@@ -278,11 +336,42 @@ Events.onMapChange += proc { |_sender,*args|
 			event.event.pages[pageIndex] = newPage
 		end
 		
-		event.floats = floatingSpecies?(pokemon.species,pokemon.form)
+		event.floats = floatingPokemon?(pokemon)
 		
 		event.refresh
     end
-}
+
+	# Followers where the trainer info is a comment on one or more of the pages
+	for event in $game_map.events.values
+		match = event.name.match(/pagedfollower/)
+		next unless match
+
+		newPages = {}
+		
+		# Go through each page
+		event.event.pages.each_with_index do |page,pageIndex|
+			next unless page.graphic.character_name == "00Overworld Placeholder"
+
+			trainerInfo = pbEventCommentInput(page, 1, "Trainer")[0]
+
+			# Parse the comment
+			trainerInfoMatch = trainerInfo.match(/:([a-zA-Z0-9_]+),"(.+)"(?:,([0-9]+))?(?:,([0-9]+))?/)
+			trainerClass = trainerInfoMatch[1].to_sym
+			trainerName = trainerInfoMatch[2]
+			trainerVersion = trainerInfoMatch[3].to_i || 0
+			partyIndex = trainerInfoMatch[4].to_i || 0
+
+			pokemon = pbLoadTrainer(trainerClass,trainerName,trainerVersion).displayPokemonAtIndex(partyIndex)
+			newPages[pageIndex] = createPokemonInteractionEventPage(pokemon,page)
+		end
+
+		newPages.each do |pageIndex,newPage|
+			event.event.pages[pageIndex] = newPage
+		end
+
+		event.refresh
+    end
+end
 
 def createPokemonInteractionEventPage(pokemon,originalPage = nil)
 	# Create the page where the cry happens
@@ -295,8 +384,20 @@ def createPokemonInteractionEventPage(pokemon,originalPage = nil)
 	newPage.trigger = 0 # Action button
 	newPage.list = []
 	push_script(newPage.list,sprintf("Pokemon.play_cry(:%s, %d)",pokemon.species,pokemon.form))
-	cryOutMessage = _INTL("#{pokemon.name} cries out!")
+	cryOutMessage = _INTL("{1} cries out!",pokemon.name)
 	push_script(newPage.list,sprintf("pbMessage(\"#{cryOutMessage}\")"))
+
+	if pokemon.itemCount == 2
+		itemName1 = getItemName(pokemon.items[0])
+		itemName2 = getItemName(pokemon.items[1])
+		itemMessage = _INTL("It's holding a {1} and a {2}!", itemName1, itemName2)
+		push_script(newPage.list,sprintf("pbMessage(\"#{itemMessage}\")"))
+	elsif pokemon.itemCount == 1
+		itemName = pokemon.firstItemData.name
+		itemMessage = _INTL("It's holding a {1}!", itemName)
+		push_script(newPage.list,sprintf("pbMessage(\"#{itemMessage}\")"))
+	end
+	
 	push_end(newPage.list)
 
 	return newPage

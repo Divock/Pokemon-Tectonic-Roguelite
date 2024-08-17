@@ -1,3 +1,4 @@
+
 class PokeBattle_Battler
     #=============================================================================
     # Get move's user
@@ -39,6 +40,9 @@ class PokeBattle_Battler
         when :NearAlly
             targetBattler = (preTarget >= 0) ? @battle.battlers[preTarget] : nil
             pbAddTargetRandomAlly(targets, user, move) unless pbAddTarget(targets, user, targetBattler, move)
+        when :Ally
+            targetBattler = (preTarget >= 0) ? @battle.battlers[preTarget] : nil
+            pbAddTargetRandomAlly(targets, user, move, false) unless pbAddTarget(targets, user, targetBattler, move)
         when :UserOrNearAlly
             targetBattler = (preTarget >= 0) ? @battle.battlers[preTarget] : nil
             pbAddTarget(targets, user, user, move, true, true) unless pbAddTarget(targets, user, targetBattler,
@@ -61,6 +65,8 @@ move, false, true)
             end
         when :RandomNearFoe
             pbAddTargetRandomFoe(targets, user, move)
+        when :ClosestNearFoe
+            pbAddTargetClosestFoe(targets, user, move)
         when :AllNearFoes
             @battle.eachOtherSideBattler(user.index) { |b| pbAddTarget(targets, user, b, move) }
         when :Foe, :Other
@@ -92,13 +98,13 @@ move, false, true)
 
         return false if aiCheck && !user.boss? && !@battle.battleAI.userMovesFirst?(move, user, target)
 
-        if target.inTwoTurnAttack?("0C9", "0CC", "0CE", "5C5") # Fly, Bounce, Sky Drop, Liftoff
+        if target.inTwoTurnSkyAttack?
             return true unless move.hitsFlyingTargets?
-        elsif target.inTwoTurnAttack?("0CA")            # Dig
+        elsif target.inTwoTurnAttack?("TwoTurnAttackInvulnerableUnderground")            # Dig
             return true unless move.hitsDiggingTargets?
-        elsif target.inTwoTurnAttack?("0CB")            # Dive
+        elsif target.inTwoTurnAttack?("TwoTurnAttackInvulnerableUnderwater")            # Dive
             return true unless move.hitsDivingTargets?
-        elsif target.inTwoTurnAttack?("0CD", "14D")	# PHANTOMFORCE/SHADOWFORCE in case we have a move that hits them
+        elsif target.inTwoTurnAttack?("TwoTurnAttackInvulnerableRemoveProtections")	# PHANTOMFORCE/SHADOWFORCE in case we have a move that hits them
             return true
         end
         
@@ -124,7 +130,7 @@ move, false, true)
         newTarget = nil
         strength = 100 # Lower strength takes priority
         priority.each do |b|
-            next if b.fainted? || b.effectActive?(:SkyDrop)
+            next if b.fainted?
             next if b.effects[:Spotlight] == 0 || b.effects[:Spotlight] >= strength
             next unless b.opposes?(user)
             next if nearOnly && !b.near?(user)
@@ -141,7 +147,7 @@ move, false, true)
         newTarget = nil
         strength = 100 # Lower strength takes priority
         priority.each do |b|
-            next if b.fainted? || b.effectActive?(:SkyDrop)
+            next if b.fainted?
             next if b.effects[:FollowMe] == 0 || b.effects[:FollowMe] >= strength
             next unless b.opposes?(user)
             next if nearOnly && !b.near?(user)
@@ -213,5 +219,20 @@ move, false, true)
             pbAddTarget(choices, user, b, nearOnly)
         end
         pbAddTarget(targets, user, choices[@battle.pbRandom(choices.length)], nearOnly) if choices.length > 0
+    end
+
+    def pbAddTargetClosestFoe(targets, user, _move, nearOnly = true)
+        choices = []
+        user.eachOpposing do |b|
+            next if nearOnly && !user.near?(b)
+            pbAddTarget(choices, user, b, nearOnly)
+        end
+        return if choices.empty?
+
+        opposingIndices = @battle.pbGetOpposingIndicesInOrder(user.index)
+        choices.sort_by! do |choice|
+            next opposingIndices.find_index(choice.index) * 100 - choice.index
+        end
+        pbAddTarget(targets, user, choices[0], nearOnly)
     end
 end

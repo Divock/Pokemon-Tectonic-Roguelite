@@ -26,6 +26,17 @@ class PokeBattle_Battler
             ret.push(@type2) if @type2 != @type1
         end
         ret = [@pokemon.itemTypeChosen] if itemActive? && hasItem?(:CRYSTALVEIL)
+        # Type changes from ability
+        eachActiveAbility do |abilityID|
+            ret = BattleHandlers.triggerTypeCalcAbility(abilityID, self, ret)
+        end
+        # Extra types (used for a curse)
+        if @pokemon
+            @pokemon.extraTypes.each do |extraPkmnType|
+                next if ret.include?(extraPkmnType)
+                ret.push(extraPkmnType)
+            end
+        end
         # Burn Up erases the Fire-type.
         ret.delete(:FIRE) if effectActive?(:BurnUp)
         # Cold Conversion erases the Ice-type.
@@ -40,6 +51,8 @@ class PokeBattle_Battler
         end
         # Add the third type specially.
         ret.push(@effects[:Type3]) if withType3 && effectActive?(:Type3) && !ret.include?(@effects[:Type3])
+        ret.uniq!
+        ret.compact!
         return ret
     end
 
@@ -118,121 +131,94 @@ class PokeBattle_Battler
         return abilityActive?(ignore_fainted, true)
     end
 
-    # Applies to both losing self's ability (i.e. being replaced by another) and
-    # having self's ability be negated.
-    def unstoppableAbility?(abil = nil)
-        ability_blacklist = [
-            # Form-changing abilities
-            :DISGUISE,
-            :MULTITYPE,
-            :POWERCONSTRUCT,
-            :SCHOOLING,
-            :SHIELDSDOWN,
-            :STANCECHANGE,
-            :ZENMODE,
-            :ICEFACE,
-            # Abilities intended to be inherent properties of a certain species
-            :COMATOSE,
-            :RKSSYSTEM,
-            :GULPMISSILE,
-            :ASONEICE,
-            :ASONEGHOST,
-            # Abilities with undefined behaviour if they were replaced or moved around
-            :STYLISH,
-            :FRIENDTOALL,
-            :PRIMEVALDISGUISE,
-            :UNIDENTIFIED,
-        ]
-
-        if abil
-            abil = GameData::Ability.try_get(abil)
-            return ability_blacklist.include?(abil.id)
-        else
-            eachAbility do |ability|
-                return ability if ability_blacklist.include?(ability)
-            end
-            return false
+    # Returns whether the user has an immutable ability or not
+    # and, if so, which ability it is
+    def immutableAbility?
+        eachAbility do |ability|
+            return ability if GameData::Ability.get(ability).is_immutable_ability?
         end
-    end
-
-    # Applies to gaining the ability.
-    def ungainableAbility?(abil = nil)
-        ability_blacklist = [
-            # Form-changing abilities
-            :DISGUISE,
-            :FLOWERGIFT,
-            :FORECAST,
-            :MULTITYPE,
-            :POWERCONSTRUCT,
-            :SCHOOLING,
-            :SHIELDSDOWN,
-            :STANCECHANGE,
-            :ZENMODE,
-            :CITYRAZER,
-            :SANDSMACABRE,
-            :FLOURISHING,
-            :REAPWHATYOUSOW,
-            # Appearance-changing abilities
-            :ILLUSION,
-            :IMPOSTER,
-            # Abilities intended to be inherent properties of a certain species
-            :COMATOSE,
-            :RKSSYSTEM,
-            :NEUTRALIZINGGAS,
-            :HUNGERSWITCH,
-            # Abilities with undefined behaviour if they were replaced or moved around
-            :STYLISH,
-            :FRIENDTOALL,
-            :PRIMEVALDISGUISE,
-            :UNIDENTIFIED,
-        ]
-
-        if abil
-            abil = GameData::Ability.try_get(abil)
-            return ability_blacklist.include?(abil.id)
-        else
-            eachAbility do |ability|
-                return ability if ability_blacklist.include?(ability)
-            end
-            return false
-        end
+        return false
     end
 
     TESTING_DOUBLE_QUALITIES = false
 
     def canAddItem?(item = nil, stolen = false)
         return false if fainted?
+
+        # Pokemon can always have a single item
+        if itemCount == 0
+            return true if item.nil?
+            return !isIllegalItem?(item)
+        end
         
-        if hasActiveAbility?(:STICKYFINGERS) && stolen
-            return itemCount < 2
+        # Sticky fingers is weird and needs it own check here
+        if hasActiveAbility?(:STICKYFINGERS)
+            return itemCount <= 1 && stolen
         end
 
-        # Disallow certain items as 2nd
-        if itemCount == 1 && item
-            return false if firstItem == item
-            return true if hasActiveAbility?(:CLUMSYKINESIS)
-            itemData = GameData::Item.get(item)
-            if hasActiveAbility?(:ALLTHATGLITTERS)
-                return false if !firstItemData.is_gem? || itemData.is_gem?
-                return true
-            end
-            if hasActiveAbility?(:BERRYBUNCH)
-                return false if !firstItemData.is_berry? || itemData.is_berry?
-                return true
-            end
-            if hasActiveAbility?(:HERBALIST)
-                return false if !HERB_ITEMS.include?(firstItem)
-                return false if !HERB_ITEMS.include?(item)
-                return true
-            end
-            if hasActiveAbility?(:FASHIONABLE)
-                clothingA = CLOTHING_ITEMS.include?(firstItem)
-                clothingB = CLOTHING_ITEMS.include?(item)
-                return clothingA != clothingB
-            end
+        # Check for multi-item legality
+        if item
+            newItemSet = items.clone
+            newItemSet.push(item)
+
+            return legalItemSet?(newItemSet)
         end
 
-        return itemCount == 0
+        return false
+    end
+
+    def legalItemSet?(itemSet, showMessages = false)
+        return true if itemSet.empty?
+
+        # No pokemon is allowed more than 2 items
+        return false if itemSet.length > 2
+
+        # If just 1 item, check for its individual legality
+        return allItemsLegal?(itemSet) if itemSet.length == 1
+
+        # Must have a multi item ability to have more than 1 item
+        hasMultiItemAbility = false
+        eachActiveAbility do |ability|
+            next unless GameData::Ability.get(ability).is_multiple_item_ability?
+            hasMultiItemAbility = true
+            break
+        end
+        return false unless hasMultiItemAbility
+
+        # Cannot have duplicates of the same item
+        return false if itemSet.length != itemSet.uniq.length
+
+        # Must have a base pokemon to check for item set legality
+        return false if @pokemon.nil?
+
+        # Check for abilities that restrict which items you're allowed to have in multi-sets
+        itemSetIsAllowed = true
+        eachActiveAbility do |ability|
+            next unless BattleHandlers.triggerDisallowItemSetAbility(ability, @pokemon, itemSet, showMessages)
+            itemSetIsAllowed = false
+            break
+        end
+        return itemSetIsAllowed
+    end
+
+    def allItemsLegal?(itemSet)
+        allItemsLegal = true
+        itemSet.each do |item|
+            next unless isIllegalItem?(item)
+            allItemsLegal = false
+            break
+        end
+        return allItemsLegal
+    end
+
+    def isIllegalItem?(itemCheck, showMessages = false)
+        # TODO: replace this check with an event-subscription
+        # also use that same event trigger in the Pokemon class
+        if itemCheck == :CRYSTALVEIL && hasActiveAbility?(:WONDERGUARD)
+            pbMessage(_INTL("#{pbThis} can't hold a #{getItemName(:CRYSTALVEIL)}!")) if showMessages
+            return true
+        end
+        return false
     end
 
     def items
@@ -391,45 +377,46 @@ class PokeBattle_Battler
     end
 
     def hasMoldBreaker?
-        return hasActiveAbility?(GameData::Ability::MOLD_BREAKING_ABILITIES)
+        return hasActiveAbility?(GameData::Ability.getByFlag("MoldBreaking"))
     end
 
     def activatesTargetAbilities?(aiCheck = false)
-        return false if hasActiveItem?(:PROXYFIST)
+        return false if shouldItemApply?(:PROXYFIST,aiCheck)
         return false if shouldAbilityApply?(:JUGGERNAUT, aiCheck)
         return true
     end
 
     def canChangeType?
-        return !%i[MULTITYPE RKSSYSTEM].include?(@ability_id)
+        return !hasActiveAbility?(%i[MULTITYPE RKSSYSTEM])
     end
 
     def airborne?(checkingForAI = false)
-        return false if hasActiveItem?(:IRONBALL)
+        return false if shouldItemApply?(:IRONBALL,checkingForAI)
         return false if effectActive?(:Ingrain)
         return false if effectActive?(:SmackDown)
         return false if @battle.field.effectActive?(:Gravity)
         return true if shouldTypeApply?(:FLYING, checkingForAI)
         return true if hasLevitate?(checkingForAI) && !@battle.moldBreaker
-        return true if hasActiveItem?(LEVITATION_ITEMS)
+        return true if shouldItemApply?(GameData::Item.getByFlag("Levitation"),checkingForAI)
         return true if effectActive?(:MagnetRise)
         return true if effectActive?(:Telekinesis)
         return false
     end
 
     def hasLevitate?(checkingForAI = false)
-        return shouldAbilityApply?(%i[LEVITATE DESERTSPIRIT], checkingForAI)
+        return shouldAbilityApply?(GameData::Ability.getByFlag("Levitation"), checkingForAI)
     end
 
     def takesIndirectDamage?(showMsg = false, aiCheck = false)
         return false if fainted?
-        if shouldAbilityApply?(:MAGICGUARD, aiCheck)
+        %i[MAGICGUARD LASTGASP].each do |indirectDamageBlockingAbility|
+            next unless shouldAbilityApply?(indirectDamageBlockingAbility, aiCheck)
             if showMsg
-                showMyAbilitySplash(:MAGICGUARD)
+                showMyAbilitySplash(indirectDamageBlockingAbility)
                 @battle.pbDisplay(_INTL("{1} is unaffected!", pbThis))
                 hideMyAbilitySplash
             end
-            aiLearnsAbility(:MAGICGUARD) unless aiCheck
+            aiLearnsAbility(indirectDamageBlockingAbility) unless aiCheck
             return false
         end
         return true
@@ -443,7 +430,6 @@ class PokeBattle_Battler
             return false if @hp >= @totalhp
         end
         return false if effectActive?(:HealBlock)
-        return false if hasActiveAbility?(:ONEDGE) && @battle.moonGlowing?
         return true
     end
 
@@ -481,8 +467,21 @@ class PokeBattle_Battler
         return false
     end
 
+    def inTwoTurnSkyAttack?
+        return inTwoTurnAttack?(
+                "TwoTurnAttackInvulnerableInSky",
+                "TwoTurnAttackInvulnerableInSkyNumbTarget",
+                "TwoTurnAttackInvulnerableInSkyRecoilQuarterOfDamageDealt"
+            )
+    end
+
     def semiInvulnerable?
-        return inTwoTurnAttack?("0C9", "0CA", "0CB", "0CC", "0CD", "0CE", "14D", "5C5")
+        return inTwoTurnAttack?("TwoTurnAttackInvulnerableInSky",
+        "TwoTurnAttackInvulnerableUnderground",
+        "TwoTurnAttackInvulnerableUnderwater",
+        "TwoTurnAttackInvulnerableInSkyNumbTarget",
+        "TwoTurnAttackInvulnerableRemoveProtections",
+        "TwoTurnAttackInvulnerableInSkyRecoilQuarterOfDamageDealt")
     end
 
     def pbEncoredMoveIndex
@@ -559,6 +558,11 @@ class PokeBattle_Battler
         @pokemon.extraMovesPerTurn = GameData::Avatar.get(@species).num_turns - 1
     end
 
+    def hpBasedEffectResistance
+        return 1.0 unless boss?
+        return 1.0 / (@pokemon.hpMult.to_f || DEFAULT_BOSS_HP_MULT.to_f)
+    end
+
     def evenTurn?
         return @battle.turnCount.even?
     end
@@ -581,12 +585,10 @@ class PokeBattle_Battler
         return @battle.commandPhasesThisRound == (turnCheck - 1)
     end
 
-    def hasHonorAura?
-        return hasActiveAbility?([:HONORABLE])
-    end
-
     def isLastAlive?
-        return false if @battle.wildBattle? && opposes?
+        if @battle.wildBattle? && opposes?
+            return !hasAlly?
+        end
         return false if fainted?
         return @battle.pbGetOwnerFromBattlerIndex(@index).able_pokemon_count == 1
     end
@@ -614,19 +616,19 @@ class PokeBattle_Battler
         return shouldAbilityApply?(:BUNKERDOWN, checkingForAI) && @hp == @totalhp
     end
 
-    def getRoomDuration
-        if hasActiveItem?(:REINFORCINGROD)
+    def getRoomDuration(aiCheck = false)
+        if shouldItemApply?(:REINFORCINGROD,aiCheck)
             return 8
         else
             return 5
         end
     end
 
-    def getScreenDuration(baseDuration = 5)
+    def getScreenDuration(baseDuration = 5,aiCheck: false)
         ret = baseDuration
-        ret += 3 if hasActiveItem?(:LIGHTCLAY)
-        ret += 6 if hasActiveItem?(:BRIGHTCLAY)
-        ret *= 2 if hasActiveAbility?(:PLANARVEIL) && @battle.eclipsed?
+        ret += 3 if shouldItemApply?(:LIGHTCLAY,aiCheck)
+        ret += 6 if shouldItemApply?(:BRIGHTCLAY,aiCheck)
+        ret *= 2 if shouldAbilityApply?(:PLANARVEIL,aiCheck) && @battle.eclipsed?
         return ret
     end
 
@@ -839,8 +841,11 @@ class PokeBattle_Battler
     end
 
     def immuneToHazards?(aiCheck = false)
-        return true if hasActiveItem?(:HEAVYDUTYBOOTS)
-        return shouldAbilityApply?(GameData::Ability::HAZARD_IMMUNITY_ABILITIES, aiCheck)
+        if shouldItemApply?(:HEAVYDUTYBOOTS,aiCheck)
+            aiLearnsItem(:HEAVYDUTYBOOTS) unless aiCheck
+            return true
+        end
+        return shouldAbilityApply?(GameData::Ability.getByFlag("HazardImmunity"), aiCheck)
     end
 
     def hasGem?
@@ -897,4 +902,7 @@ class PokeBattle_Battler
         return false
     end
 
+    def moveOutcomePredictor
+        return @battle.scene.sprites["move_outcome_#{@index}"]
+    end
 end

@@ -10,10 +10,9 @@ class PokeBattle_Battler
         # Ending primordial weather, checking Trace
         pbContinualAbilityChecks(true)
         # Abilities that trigger upon switching in
-        if (!fainted? && unstoppableAbility?) || abilityActive?
-            eachAbility do |ability|
-                BattleHandlers.triggerAbilityOnSwitchIn(ability, self, @battle)
-            end
+        eachAbility do |ability|
+            next unless (!fainted? && GameData::Ability.get(ability).is_immutable_ability?) || abilityActive?
+            BattleHandlers.triggerAbilityOnSwitchIn(ability, self, @battle)
         end
         # Check for end of primordial weather
         @battle.pbEndPrimordialWeather
@@ -21,6 +20,14 @@ class PokeBattle_Battler
         if switchIn
             eachActiveItem do |item|
                 BattleHandlers.triggerItemOnSwitchIn(item, self, @battle)
+
+                if @battle.statItemsAreMetagameRevealed
+                    # Auto reveal vests and choice items
+                    itemData = GameData::Item.get(item)
+                    if itemData.is_no_status_use? || itemData.is_choice_locking?
+                        aiLearnsItem(item)
+                    end 
+                end
             end
         end
         # Berry check, status-curing ability check
@@ -111,7 +118,7 @@ class PokeBattle_Battler
         if hasActiveAbility?(:TRACE)
             choices = []
             @battle.eachOtherSideBattler(@index) do |b|
-                next if b.ungainableAbility?(b.firstAbility) || UNCOPYABLE_ABILITIES.include?(b.firstAbility)
+                next if GameData::Ability.get(b.firstAbility).is_uncopyable_ability?
                 choices.push(b)
             end
             unless choices.empty?
@@ -121,7 +128,7 @@ class PokeBattle_Battler
                 setAbility(stolenAbility)
                 @battle.pbDisplay(_INTL("{1} traced {2}'s {3}!", pbThis, choice.pbThis(true), getAbilityName(stolenAbility)))
                 hideMyAbilitySplash
-                if !onSwitchIn && (unstoppableAbility?(stolenAbility) || abilityActive?)
+                if !onSwitchIn && abilityActive?
                     BattleHandlers.triggerAbilityOnSwitchIn(stolenAbility, self, @battle)
                 end
                 return
@@ -133,8 +140,7 @@ class PokeBattle_Battler
             @battle.eachOtherSideBattler(@index) do |b|
                 copiableAbilities = []
                 b.eachLegalAbility do |abilityID|
-                    next if b.ungainableAbility?(abilityID)
-                    next if GameData::Ability::UNCOPYABLE_ABILITIES.include?(abilityID)
+                    next if GameData::Ability.get(abilityID).is_uncopyable_ability?
                     copiableAbilities.push(abilityID)
                 end
                 next if copiableAbilities.empty?
@@ -151,7 +157,7 @@ class PokeBattle_Battler
                     @battle.pbDisplay(_INTL("{1} imitated the Ability {2}!", pbThis, getAbilityName(legalAbility)))
                 end
                 hideMyAbilitySplash
-                if !onSwitchIn && (unstoppableAbility? || abilityActive?)
+                if !onSwitchIn && (immutableAbility? || abilityActive?)
                     eachAbility do |ability|
                         BattleHandlers.triggerAbilityOnSwitchIn(ability, self, @battle)
                     end
@@ -183,7 +189,7 @@ class PokeBattle_Battler
                 @battle.pbSetSeen(self)
             end
         end
-        disableEffect(:GastroAcid) if unstoppableAbility?
+        disableEffect(:GastroAcid) if immutableAbility?
         disableEffect(:SlowStart) unless hasAbility?(:SLOWSTART)
         
         # Revert form if Flower Gift/Forecast was lost
@@ -194,11 +200,12 @@ class PokeBattle_Battler
         
         if items.length > 1
             droppedItems = false
-            GameData::Ability::MULTI_ITEM_ABILITIES.each do |doubleItemAbility|
+            GameData::Ability.getByFlag("MultipleItems").each do |doubleItemAbility|
                 next unless oldAbilities.include?(doubleItemAbility) && !hasAbility?(doubleItemAbility)
                 itemKept = items[0]
                 setItems(itemKept)
                 @battle.pbDisplay(_INTL("{1} dropped all of its items except {2}!", pbThis, getItemName(itemKept)))
+                aiLearnsItem(itemKept)
                 droppedItems = true
                 break
             end
@@ -215,6 +222,8 @@ class PokeBattle_Battler
         disableEffect(:ItemLost)
         @pokemon.giveItem(item)
         refreshDataBox
+
+        @addedItems.push(item)
     end
     
     def setItems(value)
@@ -254,7 +263,7 @@ class PokeBattle_Battler
     def canConsumePinchBerry?(check_gluttony = true)
         return false unless canConsumeBerry?
         return true if @hp <= @totalhp / 4
-        return true if @hp <= @totalhp / 2 && (!check_gluttony || hasActiveAbility?(:GLUTTONY))
+        return true if @hp <= @totalhp / 2 && (!check_gluttony || hasActiveAbility?(%i[GLUTTONY GOURMAND]))
         return false
     end
 
@@ -263,7 +272,7 @@ class PokeBattle_Battler
         unless itemIndex
             raise _INTL("Error: Asked to remove item #{item} from #{pbThis(true)}, but it doesn't have that item")
         end
-        disableEffect(:ChoiceBand) if CHOICE_LOCKING_ITEMS.include?(item)
+        disableEffect(:ChoiceBand) if GameData::Item.get(item).is_choice_locking?
         items.delete_at(itemIndex)
         applyEffect(:ItemLost) if items.length == 0
         refreshDataBox
@@ -287,9 +296,9 @@ class PokeBattle_Battler
         @battle.triggerBattlerConsumedItemDialogue(self, item)
         if recoverable
             setRecycleItem(item)
-            if itemData.is_berry?
+            if itemData.is_berry? && hasActiveAbility?(:CUDCHEW)
                 applyEffect(:CudChew, 2)
-                applyEffect(:CudChewItem, item) if hasActiveAbility?(:CUDCHEW)
+                applyEffect(:CudChewItem, item)
             end
         end
         setBelched if belch && itemData.is_berry?
@@ -306,7 +315,10 @@ class PokeBattle_Battler
                 BattleHandlers.triggerOnBerryConsumedAbility(ability, self, item_to_use, ownitem, @battle)
             end
         end
-        consumeItem(item_to_use) if ownitem
+        if ownitem
+            consumeItem(item_to_use)
+            aiLearnsItem(item_to_use)
+        end
     end
 
     #=============================================================================

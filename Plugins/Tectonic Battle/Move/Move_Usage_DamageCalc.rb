@@ -164,7 +164,7 @@ class PokeBattle_Move
     def pbCalcWeatherDamageMultipliers(user,target,type,multipliers,checkingForAI=false)
         weather = @battle.pbWeather
         case weather
-        when :Sun, :HarshSun
+        when :Sunshine, :HarshSun
             if type == :FIRE
                 damageBonus = weather == :HarshSun ? 0.5 : 0.3
                 damageBonus *= 2 if @battle.curseActive?(:CURSE_BOOSTED_SUN)
@@ -175,7 +175,7 @@ class PokeBattle_Move
                 damageReduction *= 2 if @battle.curseActive?(:CURSE_BOOSTED_SUN)
                 multipliers[:final_damage_multiplier] *= (1 - damageReduction)
             end
-        when :Rain, :HeavyRain
+        when :Rainstorm, :HeavyRain
             if type == :WATER
                 damageBonus = weather == :HeavyRain ? 0.5 : 0.3
                 damageBonus *= 2 if @battle.curseActive?(:CURSE_BOOSTED_RAIN)
@@ -265,6 +265,12 @@ class PokeBattle_Move
                     multipliers[:final_damage_multiplier] *= 2 / 3.0
                 else
                     multipliers[:final_damage_multiplier] *= 0.5
+                end
+            elsif target.pbOwnSide.effectActive?(:DiamondField)
+                if @battle.pbSideBattlerCount(target) > 1
+                    multipliers[:final_damage_multiplier] *= 3 / 4.0
+                else
+                    multipliers[:final_damage_multiplier] *= 2 / 3.0
                 end
             end
 
@@ -425,10 +431,10 @@ class PokeBattle_Move
         pbCalcTribeBasedDamageMultipliers(user,target,type,multipliers,aiCheck)
 
         # Item effects that alter damage
-        user.eachActiveItem do |item|
+        user.eachItemShouldApply(aiCheck) do |item|
             BattleHandlers.triggerDamageCalcUserItem(item,user,target,self,multipliers,baseDmg,type,aiCheck)
         end
-        target.eachActiveItem do |item|
+        target.eachItemShouldApply(aiCheck) do |item|
             BattleHandlers.triggerDamageCalcTargetItem(item,user,target,self,multipliers,baseDmg,type,aiCheck)
         end
 

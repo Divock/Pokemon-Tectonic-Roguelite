@@ -38,7 +38,7 @@ end
 
 def pbBattleTypeWeakingBerry(item, type, moveType, target, mults, feast = false, aiCheck = false)
     return if moveType != type
-    return if Effectiveness.resistant?(target.damageState.typeMod) && moveType != :NORMAL
+    return if !Effectiveness.super_effective?(target.damageState.typeMod) && moveType != :NORMAL
     if target.hasActiveAbility?(:RIPEN)
         mults[:final_damage_multiplier] = (mults[:final_damage_multiplier] / 4).round
     else
@@ -59,4 +59,11 @@ def pbBattleGem(item, user, type, move, mults, moveType, aiCheck = false)
     return unless user.canConsumeGem?
     user.applyEffect(:GemConsumed, item) unless aiCheck
     mults[:base_damage_multiplier] *= 1.5
+end
+
+def typeBoostingItem(item, user, type, mults, moveType, aiCheck = false)
+    if moveType == type
+        mults[:base_damage_multiplier] *= 1.2
+        user.aiLearnsItem(item) unless aiCheck
+    end
 end

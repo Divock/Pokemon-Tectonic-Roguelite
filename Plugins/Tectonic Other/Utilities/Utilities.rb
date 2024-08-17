@@ -405,14 +405,11 @@ def pbMoveTutorChoose(move, movelist = nil, bymachine = false, oneusemachine = f
             pokemon = $Trainer.party[chosen]
             if pokemon.egg?
                 pbMessage(_INTL("Eggs can't be taught any moves.")) { screen.pbUpdate }
-            elsif pokemon.shadowPokemon?
-                pbMessage(_INTL("Shadow Pokémon can't be taught any moves.")) { screen.pbUpdate }
             elsif movelist && !movelist.any? { |j| j == pokemon.species }
                 pbMessage(_INTL("{1} can't learn {2}.", pokemon.name, movename)) { screen.pbUpdate }
             elsif !pokemon.compatible_with_move?(move)
                 pbMessage(_INTL("{1} can't learn {2}.", pokemon.name, movename)) { screen.pbUpdate }
-            elsif pbLearnMove(pokemon, move, false, bymachine) { screen.pbUpdate }
-                pokemon.add_first_move(move) if oneusemachine
+            elsif pbLearnMove(pokemon, move, false, bymachine, true) { screen.pbUpdate }
                 ret = true
                 break
             end
@@ -545,12 +542,11 @@ DIR_SCREENSHOTS = "Screenshots"
 
 def pbScreenCapture(label = nil, show_message = false)
 	t = Time.now
-  	filestart = t.strftime("[%Y-%m-%d] %H_%M_%S.%L")
-	filestart = label + filestart if label
+    fileName = label || t.strftime("[%Y-%m-%d] %H_%M_%S.%L")
   	Dir.mkdir(DIR_SCREENSHOTS) if !safeExists?(DIR_SCREENSHOTS)
-  	capturefile = sprintf("%s/%s.png", DIR_SCREENSHOTS, filestart)
+  	capturefile = sprintf("%s/%s.png", DIR_SCREENSHOTS, fileName)
   	Graphics.screenshot(capturefile)
   	pbSEPlay("Pkmn exp full") if FileTest.audio_exist?("Audio/SE/Pkmn exp full")
 
-	pbMessage(_INTL("Screenshot saved to folder #{DIR_SCREENSHOTS}\1")) if show_message
+	pbMessage(_INTL("Screenshot saved to folder {1}\1",DIR_SCREENSHOTS)) if show_message
 end

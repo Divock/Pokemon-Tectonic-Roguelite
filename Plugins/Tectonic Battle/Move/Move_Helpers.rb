@@ -1,7 +1,7 @@
 class PokeBattle_Move
     def shouldHighlight?(user, target)
         if damagingMove?(true)
-            bpAgainstTarget = pbBaseDamageAI(@baseDamage, user, target)
+            bpAgainstTarget = predictedBasePower(user, target)
             if @baseDamage == 1
                 return bpAgainstTarget >= 100
             else
@@ -9,6 +9,10 @@ class PokeBattle_Move
             end
         end
         return false
+    end
+
+    def predictedBasePower(user, target)
+        return pbBaseDamageAI(@baseDamage, user, target)
     end
 
     def shouldShade?(user, target)
@@ -38,11 +42,11 @@ class PokeBattle_Move
     end
 
     def canRemoveItem?(user, target, item, checkingForAI: false)
-        return false unless canknockOffItems?(user, target, checkingForAI)
+        return false unless canKnockOffItems?(user, target, checkingForAI)
         return !target.unlosableItem?(item)
     end
 
-    def canknockOffItems?(user, target, checkingForAI = false, ignoreTargetFainted = false)
+    def canKnockOffItems?(user, target, checkingForAI = false, ignoreTargetFainted = false)
         if @battle.wildBattle? && user.opposes? && !user.boss # Wild Pokémon can't knock off, but bosses can
             return false
         end
@@ -60,7 +64,7 @@ class PokeBattle_Move
 
     def canStealItem?(user, target, item, checkingForAI: false)
         return false if item.nil?
-        return false unless canknockOffItems?(user, target, checkingForAI, true)
+        return false unless canKnockOffItems?(user, target, checkingForAI, true)
         return false if target.unlosableItem?(item, !checkingForAI)
         return false if !user.canAddItem?(item, true) && @battle.trainerBattle?
         return false if user.unlosableItem?(item)
@@ -70,7 +74,7 @@ class PokeBattle_Move
     # Returns whether the item was removed
     # Can pass a block to overwrite the removal message and do other effects at the same time
     def knockOffItems(remover, victim, ability: nil, firstItemOnly: false, validItemProc: nil)
-        return false unless canknockOffItems?(remover, victim)
+        return false unless canKnockOffItems?(remover, victim)
         battle.pbShowAbilitySplash(remover, ability) if ability
         if victim.hasActiveAbility?(:STICKYHOLD)
             battle.pbShowAbilitySplash(victim, :STICKYHOLD) if remover.opposes?(victim)
@@ -219,11 +223,21 @@ class PokeBattle_Move
     # Chooses a move category based on which attacking stat is higher (if no target is provided)
     # Or which will deal more damage to the target
     def selectBestCategory(user, target = nil)
-        real_attack = user.attack
-        real_special_attack = user.spatk
+        if target && target.hasActiveAbility?(:UNAWARE)
+            real_attack = user.getFinalStat(:ATTACK, false, 0)
+            real_special_attack = user.getFinalStat(:SPECIAL_ATTACK, false, 0)
+        else
+            real_attack = user.getFinalStat(:ATTACK)
+            real_special_attack = user.getFinalStat(:SPECIAL_ATTACK)
+        end
         if target
-            real_defense = target.pbDefense
-            real_special_defense = target.pbSpDef
+            if user.hasActiveAbility?(:UNAWARE)
+                real_defense = target.getFinalStat(:DEFENSE, false, 0)
+                real_special_defense = target.getFinalStat(:SPECIAL_DEFENSE, false, 0)
+            else
+                real_defense = target.getFinalStat(:DEFENSE)
+                real_special_defense = target.getFinalStat(:SPECIAL_DEFENSE)
+            end
             # Perform simple damage calculation
             physical_damage = real_attack.to_f / real_defense
             special_damage = real_special_attack.to_f / real_special_defense
@@ -241,16 +255,16 @@ class PokeBattle_Move
         end
     end
 
-    def switchOutUser(user,switchedBattlers)
+    def switchOutUser(user,switchedBattlers=[],disableMoldBreaker=true,randomReplacement=false,batonPass=false)
         return unless @battle.pbCanChooseNonActive?(user.index)
         @battle.pbDisplay(_INTL("{1} went back to {2}!", user.pbThis, @battle.pbGetOwnerName(user.index)))
         @battle.pbPursuit(user.index)
         return if user.fainted?
         newPkmn = @battle.pbGetReplacementPokemonIndex(user.index) # Owner chooses
         return if newPkmn < 0
-        @battle.pbRecallAndReplace(user.index, newPkmn)
+        @battle.pbRecallAndReplace(user.index, newPkmn, randomReplacement, batonPass)
         @battle.pbClearChoice(user.index) # Replacement Pokémon does nothing this round
-        @battle.moldBreaker = false
+        @battle.moldBreaker = false if disableMoldBreaker
         switchedBattlers.push(user.index)
         user.pbEffectsOnSwitchIn(true)
     end

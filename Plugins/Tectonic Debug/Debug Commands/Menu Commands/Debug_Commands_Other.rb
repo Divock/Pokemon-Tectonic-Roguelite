@@ -17,6 +17,16 @@ DebugMenuCommands.register("mysterygift", {
       pbExtractText
     }
   })
+
+  DebugMenuCommands.register("extractuntranslatedtext", {
+    "parent"      => "othermenu",
+    "name"        => _INTL("Extract Untranslated Text"),
+    "description" => _INTL("Extract all text in the game that isn't translated for the current language."),
+    "always_show" => true,
+    "effect"      => proc {
+      pbExtractText(true)
+    }
+  })
   
   DebugMenuCommands.register("compiletext", {
     "parent"      => "othermenu",
@@ -133,7 +143,7 @@ DebugMenuCommands.register("mysterygift", {
     params.setRange(1, 24)
     chosenHour = pbChooseNumber(nil, params) 
     UnrealTime.advance_to(chosenHour - 1, 0, 0)
-    pbMessage("Advancing the unreal time system to hour #{chosenHour}")
+    pbMessage(_INTL("Advancing the unreal time system to hour #{chosenHour}"))
     }}
   )
   
@@ -143,7 +153,7 @@ DebugMenuCommands.register("mysterygift", {
     "description" => _INTL("Get rid of any partner trainer joining your battles."),
     "effect"      => proc {
       pbDeregisterPartner
-      pbMessage("De-Registered partner.")
+      pbMessage(_INTL("De-Registered partner."))
     }
   })
 
@@ -175,7 +185,7 @@ DebugMenuCommands.register("mysterygift", {
       echoln("Compiling avatar data")
       Compiler.write_avatars
 
-      pbMessage("Rename completed.")
+      pbMessage(_INTL("Rename completed."))
       break
     end
   }
@@ -202,12 +212,12 @@ DebugMenuCommands.register("renamemovefromfile", {
 
       echoln("Writing avatar data")
       Compiler.write_avatars
-      pbMessage("Mass rename completed.")
+      pbMessage(_INTL("Mass rename completed."))
 
       pbMessage("Create a new move rename save conversion, and rename \"move_renames.txt\" to \"move_renames_{X}.txt\"" +
         " where {X} is the next highest number of all files you see (e.g." +
         " If you see a \"move_renames_2.txt\", rename yours to \"move_renames_3\".txt)")
-      pbMessage("Or tell a programmer to do it for you :)")
+      pbMessage(_INTL("Or tell a programmer to do it for you :)"))
     rescue
       pbPrintException($!)
     end
@@ -216,14 +226,21 @@ DebugMenuCommands.register("renamemovefromfile", {
 
   DebugMenuCommands.register("saveoldinator", {
     "parent"      => "othermenu",
-    "name"        => _INTL("Set save to 3.0.0"),
-    "description" => _INTL("Set this save to 3.0.0, for conversion testing."),
+    "name"        => _INTL("Set save to older version"),
+    "description" => _INTL("Set this save to an older version, for conversion testing."),
     "always_show" => true,
     "effect"      => proc {
-      downgradeSaveTo30
-      pbMessage("Save has been converted to 3.0.0, please close your game.")
+        versionNumber = pbEnterText(_INTL("Enter game version."),0,20)
+        setSaveVersion(versionNumber)
+        pbMessage(_INTL("Save has been converted to {1}, please close your game.",versionNumber))
     }
   })
+
+  def setSaveVersion(versionNumber)
+    save_data = SaveData.get_data_from_file(SaveData::FILE_PATH)
+    save_data[:game_version] = versionNumber
+    File.open(SaveData::FILE_PATH, 'wb') { |file| Marshal.dump(save_data, file) }
+  end
 
 def getRenamedMovesBatch(version = -1)
   renamingHash = {}
@@ -377,13 +394,6 @@ def renameMoves(renamingHash)
         :shape                 => species_data.shape,
         :habitat               => species_data.habitat,
         :generation            => species_data.generation,
-        :back_sprite_x         => species_data.back_sprite_x,
-        :back_sprite_y         => species_data.back_sprite_y,
-        :front_sprite_x        => species_data.front_sprite_x,
-        :front_sprite_y        => species_data.front_sprite_y,
-        :front_sprite_altitude => species_data.front_sprite_altitude,
-        :shadow_x              => species_data.shadow_x,
-        :shadow_size           => species_data.shadow_size,
         :notes                 => species_data.notes,
         :tribes                => species_data.tribes(true),
       }
@@ -425,13 +435,6 @@ def renameMoves(renamingHash)
         :shape                 => species_data.shape || base_data.shape,
         :habitat               => species_data.habitat || base_data.habitat,
         :generation            => species_data.generation || base_data.generation,
-        :back_sprite_x         => species_data.back_sprite_x || base_data.back_sprite_x,
-        :back_sprite_y         => species_data.back_sprite_y || base_data.back_sprite_y,
-        :front_sprite_x        => species_data.front_sprite_x || base_data.front_sprite_x,
-        :front_sprite_y        => species_data.front_sprite_y || base_data.front_sprite_y,
-        :front_sprite_altitude => species_data.front_sprite_altitude || base_data.front_sprite_altitude,
-        :shadow_x              => species_data.shadow_x || base_data.shadow_x,
-        :shadow_size           => species_data.shadow_size || base_data.shadow_size,
         :mega_stone            => species_data.mega_stone,
         :mega_move             => species_data.mega_move,
         :unmega_form           => species_data.unmega_form,

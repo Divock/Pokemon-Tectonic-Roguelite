@@ -65,21 +65,6 @@ BattleHandlers::EOREffectAbility.add(:SPINTENSITY,
   }
 )
 
-BattleHandlers::EOREffectAbility.add(:BALLFETCH,
-  proc { |ability, battler, battle|
-      if battler.effectActive?(:BallFetch) && battler.item <= 0
-          ball = battler.effects[:BallFetch]
-          battler.item = ball
-          battler.setInitialItem(battler.item)
-
-          battle.pbShowAbilitySplash(battler, ability)
-          battle.pbDisplay(_INTL("{1} found a {2}!", battler.pbThis, PBItems.getName(ball)))
-          battler.disableEffect(:BallFetch)
-          battle.pbHideAbilitySplash(battler)
-      end
-  }
-)
-
 BattleHandlers::EOREffectAbility.add(:HUNGERSWITCH,
   proc { |ability, battler, battle|
       if battler.species == :MORPEKO
@@ -96,7 +81,7 @@ BattleHandlers::EOREffectAbility.add(:HUNGERSWITCH,
 
 BattleHandlers::EOREffectAbility.add(:LUXURYTASTE,
   proc { |ability, battler, battle|
-      next unless battler.hasActiveItem?(CLOTHING_ITEMS)
+      next unless battler.hasActiveItem?(GameData::Item.getByFlag("Clothing"))
       healingMessage = _INTL("{1} luxuriated in its fine clothing.", battler.pbThis)
       battler.applyFractionalHealing(1.0 / 8.0, ability: ability, customMessage: healingMessage)
   }
@@ -230,6 +215,12 @@ NOXIOUS_DAMAGE_FRACTION = 1.0/12.0
 
 BattleHandlers::EOREffectAbility.add(:NOXIOUS,
   proc { |ability, battler, battle|
+    anyPresent = false
+    battler.eachOther do |b|
+      anyPresent = true
+      break
+    end
+    next unless anyPresent
     battler.showMyAbilitySplash(ability)
     battler.eachOther do |b|
       if b.takesIndirectDamage?(true)

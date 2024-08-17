@@ -25,7 +25,7 @@ class PokeBattle_Battle
         @switching = true
         pbPriority.each do |b|
             next if b.fainted? || !b.opposes?(idxSwitcher) # Shouldn't hit an ally
-            next if b.movedThisRound? || !pbChoseMoveFunctionCode?(b.index, "088") # Pursuit
+            next if b.movedThisRound? || !pbChoseMoveFunctionCode?(b.index, "PursueSwitchingFoe") # Pursuit
             # Check whether Pursuit can be used
             next unless pbMoveCanTarget?(b.index, idxSwitcher, @choices[b.index][2].pbTarget(b))
             next unless pbCanChooseMove?(b.index, @choices[b.index][1], false)
@@ -66,13 +66,13 @@ class PokeBattle_Battle
             item = @choices[b.index][1]
             next unless item
             case GameData::Item.get(item).battle_use
-            when 1, 2, 6, 7   # Use on Pokémon/Pokémon's move
+            when 1, 2   # Use on Pokémon/Pokémon's move
                 pbUseItemOnPokemon(item, @choices[b.index][2], b) if @choices[b.index][2] >= 0
-            when 3, 8         # Use on battler
+            when 3         # Use on battler
                 pbUseItemOnBattler(item, @choices[b.index][2], b)
-            when 4, 9         # Use Poké Ball
+            when 4         # Use Poké Ball
                 pbUsePokeBallInBattle(item, @choices[b.index][2], b)
-            when 5, 10        # Use directly
+            when 5        # Use directly
                 pbUseItemInBattle(item, @choices[b.index][2], b)
             else
                 next
@@ -198,7 +198,6 @@ class PokeBattle_Battle
                 b.disableEffect(:DestinyBond)
             end
             b.disableEffect(:Rage) unless pbChoseMoveFunctionCode?(i, "093") # Rage
-            b.disableEffect(:Enlightened) unless pbChoseMoveFunctionCode?(i, "515") # Enlightened Hit
             b.applyEffect(:ChoseAttack) if b.usingAttackThisTurn?
             b.applyEffect(:ChoseStatus) if b.usingStatusThisTurn?
             b.lastRoundHighestTypeModFromFoe = -1
@@ -225,6 +224,7 @@ class PokeBattle_Battle
         pbCalculatePriority(true)
         # Perform actions
         return if attackPhaseNonMoveActions
+        speedAffectingTriggers
         pbPriority.each do |battler|
             next if battler.fainted?
             next unless @choices[battler.index][0] == :UseMove

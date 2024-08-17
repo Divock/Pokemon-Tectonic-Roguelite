@@ -32,7 +32,7 @@ class PokeBattle_Battler
             # Trackers
             if target.opposes?(user)
                 target.tookPhysicalHit = true if move.physicalMove?
-                target.tookSpecialHit = true if move.physicalMove?
+                target.tookSpecialHit = true if move.specialMove?
             end
 
             # Learn the target's damage affecting abilities
@@ -56,6 +56,11 @@ class PokeBattle_Battler
             if target.effectActive?(:BeakBlast)
                 PBDebug.log("[Lingering effect] #{target.pbThis}'s Beak Blast")
                 user.applyBurn(target) if move.physicalMove? && user.canBurn?(target, true, move)
+            end
+            # Condensate
+            if target.effectActive?(:Condensate)
+                PBDebug.log("[Lingering effect] #{target.pbThis}'s Condensate")
+                user.applyFrostbite(target) if move.specialMove? && user.canFrostbite?(target, true, move)
             end
             # Are set to move, but haven't yet
             if @battle.choices[target.index][0] == :UseMove && !target.movedThisRound?
@@ -191,26 +196,53 @@ user.pbThis(true)))
             user.consumeItem(user.effects[:GemConsumed])
             user.disableEffect(:GemConsumed,true)
         end
+
+        # NOTE: The consume animation and message for Herbs are shown immediately
+        # after the move's animation, but the item is only consumed now.
+
         # Consume user's empowering Herb
         if user.effectActive?(:EmpoweringHerbConsumed,true)
-            # NOTE: The consume animation and message for Herbs are shown immediately
-            #       after the move's animation, but the item is only consumed now.
             user.consumeItem(user.effects[:EmpoweringHerbConsumed])
             user.disableEffect(:EmpoweringHerbConsumed,true)
         end
         # Consume user's skill Herb
         if user.effectActive?(:SkillHerbConsumed,true)
-            # NOTE: The consume animation and message for Herbs are shown immediately
-            #       after the move's animation, but the item is only consumed now.
             user.consumeItem(:SKILLHERB)
             user.disableEffect(:SkillHerbConsumed,true)
         end
         # Consume user's luck Herb
         if user.effectActive?(:LuckHerbConsumed,true)
-            # NOTE: The consume animation and message for Herbs are shown immediately
-            #       after the move's animation, but the item is only consumed now.
             user.consumeItem(:LUCKHERB)
             user.disableEffect(:LuckHerbConsumed,true)
+        end
+
+        # Herbs on opponents
+        user.eachOpposing do |opp|
+            # Consume opponent's mirror Herb
+            if opp.pointsAt?(:MirrorHerbConsumed,user)
+                @battle.pbCommonAnimation("UseItem", opp)
+                @battle.pbDisplay(_INTL("{1} copies {2}'s stat increases with its {3}!", opp.pbThis, user.pbThis(false), getItemName(:MIRRORHERB)))
+                statsHash = opp.effects[:MirrorHerbCopiedStats]
+                statArray = []
+                GameData::Stat.each_main_battle do |stat|
+                    next unless statsHash.key?(stat.id)
+                    increment = statsHash[stat.id]
+                    statArray.push(stat.id)
+                    statArray.push(increment)
+                end
+                opp.pbRaiseMultipleStatSteps(statArray, opp)
+                opp.consumeItem(:MIRRORHERB)
+                opp.disableEffect(:MirrorHerbConsumed)
+            end
+            # Consume opponent's paradox Herb
+            if opp.pointsAt?(:ParadoxHerbConsumed,user)
+                @battle.pbCommonAnimation("UseItem", opp)
+                @battle.pbDisplay(_INTL("{1} resets {2}'s stats with its {3}!", opp.pbThis, user.pbThis(false), getItemName(:PARADOXHERB)))
+                @battle.pbAnimation(:REFRESH, user, nil)
+                user.resetStatSteps
+                opp.consumeItem(:PARADOXHERB)
+                opp.disableEffect(:ParadoxHerbConsumed)
+            end
         end
     end
 

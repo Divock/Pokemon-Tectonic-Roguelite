@@ -43,6 +43,17 @@ GameData::BattleEffect.register_effect(:Battler, {
 })
 
 GameData::BattleEffect.register_effect(:Battler, {
+    :id => :Condensate,
+    :real_name => "Condensate",
+    :resets_battlers_eot => true,
+    :resets_battlers_sot => true,
+    :apply_proc => proc do |battle, battler, _value|
+        battle.pbCommonAnimation("Shiver", battler)
+        battle.pbDisplay(_INTL("{1} rapidly cooled the air!", battler.pbThis))
+    end,
+})
+
+GameData::BattleEffect.register_effect(:Battler, {
     :id => :Bide,
     :real_name => "Bide Turns",
     :type => :Integer,
@@ -353,7 +364,7 @@ GameData::BattleEffect.register_effect(:Battler, {
     :real_name => "Ability Surpressed",
     :baton_passed => true,
     :pass_value_proc => proc do |battler, value|
-        next false if battler.unstoppableAbility?
+        next false if battler.immutableAbility?
         next value
     end,
     :apply_proc => proc do |battle, battler, _value|
@@ -386,6 +397,27 @@ GameData::BattleEffect.register_effect(:Battler, {
 GameData::BattleEffect.register_effect(:Battler, {
     :id => :LuckHerbConsumed,
     :real_name => "Luck Herb Consumed",
+    :resets_battlers_eot => true,
+})
+
+GameData::BattleEffect.register_effect(:Battler, {
+    :id => :MirrorHerbConsumed,
+    :real_name => "Mirror Herb Consumed",
+    :type => :Position,
+    :resets_battlers_eot => true,
+    :sub_effects => [:MirrorHerbCopiedStats]
+})
+
+GameData::BattleEffect.register_effect(:Battler, {
+    :id => :MirrorHerbCopiedStats,
+    :real_name => "Mirror Herb Copied Stats",
+    :type => :Hash,
+})
+
+GameData::BattleEffect.register_effect(:Battler, {
+    :id => :ParadoxHerbConsumed,
+    :type => :Position,
+    :real_name => "Paradox Herb Consumed",
     :resets_battlers_eot => true,
 })
 
@@ -782,7 +814,7 @@ GameData::BattleEffect.register_effect(:Battler, {
     :type => :Integer,
     :baton_passed => true,
     :apply_proc => proc do |battle, battler, value|
-        if battler.boss?
+        if value > 5
             battle.pbDisplay(_INTL("{1} heard the Perish Song, but weakly!", battler.pbThis, value))
             battle.pbDisplay(_INTL("It will faint in {2} turns!", battler.pbThis, value))
         else
@@ -798,6 +830,9 @@ GameData::BattleEffect.register_effect(:Battler, {
             battler.showMyAbilitySplash(:REAPWHATYOUSOW)
             battler.hp = battler.totalhp
             battler.pbChangeForm(1,_INTL("{1} begins the harvest!",battler.pbThis))
+            battler.pbChangeTypes(battler.species_data.id)
+            setDefaultAvatarMoveset(battler.pokemon) if battler.boss?
+            battler.resetMoves
             battle.scene.reviveBattler(battler.index)
             battler.hideMyAbilitySplash
         end
@@ -934,6 +969,12 @@ GameData::BattleEffect.register_effect(:Battler, {
     :id => :Roost,
     :real_name => "Roosting",
     :resets_eor	=> true,
+    :apply_proc => proc do |_battle, battler, _value|
+        battler.refreshDataBox
+    end,
+    :disable_proc => proc do |battle, battler|
+        battler.refreshDataBox
+    end,
 })
 
 GameData::BattleEffect.register_effect(:Battler, {
@@ -981,7 +1022,7 @@ GameData::BattleEffect.register_effect(:Battler, {
     :id => :SmackDown,
     :real_name => "Smacked Down",
     :apply_proc => proc do |battle, battler, _value|
-        if battler.inTwoTurnAttack?("0C9", "0CC") # Fly/Bounce. NOTE: Not Sky Drop.
+        if battler.inTwoTurnSkyAttack?
             battler.disableEffect(:TwoTurnAttack)
             battle.pbClearChoice(battler.index) unless battler.movedThisRound?
         end
@@ -1004,6 +1045,7 @@ GameData::BattleEffect.register_effect(:Battler, {
     :id => :Spotlight,
     :real_name => "Spotlight",
     :type => :Integer,
+    :resets_eor	=> true,
     :apply_proc => proc do |battle, battler, _value|
         battle.pbDisplay(_INTL("{1} became the center of attention!", battler.pbThis))
     end,
@@ -1171,13 +1213,13 @@ GameData::BattleEffect.register_effect(:Battler, {
         when :FIRESPIN, :CRIMSONSTORM       then battle.pbCommonAnimation("FireSpin", battler)
         when :MAGMASTORM                    then battle.pbCommonAnimation("MagmaStorm", battler)
         when :SANDTOMB, :SANDVORTEX         then battle.pbCommonAnimation("SandTomb", battler)
-        when :INFESTATION                   then battle.pbCommonAnimation("Infestation", battler)
+        when :INFESTATION, :TERRORSWARM     then battle.pbCommonAnimation("Infestation", battler)
         when :SNAPTRAP                      then battle.pbCommonAnimation("SnapTrap", battler)
         when :THUNDERCAGE                   then battle.pbCommonAnimation("ThunderCage", battler)
         when :WHIRLPOOL, :MAELSTROM         then battle.pbCommonAnimation("Whirlpool", battler)
         when :BEARHUG	                    then battle.pbCommonAnimation("BearHug", battler)
         when :MAGICHAND,:KINETICGRIP        then battle.pbCommonAnimation("CrushGrip", battler)
-        when :MAGNETIZE,:MAGNETPRISON       then battle.pbCommonAnimation("MagnetBomb", battler)
+        when :MAGNETIZE,:FARADAYCAGE        then battle.pbCommonAnimation("MagnetBomb", battler)
         else battle.pbCommonAnimation("Wrap", battler)
         end
         if battler.takesIndirectDamage?
@@ -1219,9 +1261,8 @@ GameData::BattleEffect.register_effect(:Battler, {
 
 GameData::BattleEffect.register_effect(:Battler, {
     :id => :Type3,
-    :real_name => "Type 3",
+    :real_name => "Added Type",
     :type => :Type,
-    :info_displayed => false,
     :avatars_purge => true,
     :apply_proc => proc do |battle, battler, value|
         typeName = GameData::Type.get(value).name
@@ -1254,7 +1295,6 @@ GameData::BattleEffect.register_effect(:Battler, {
         battle.pbDisplay(_INTL("{1} caused an uproar!", battler.pbThis))
         battle.pbPriority(true).each do |b|
             next if b.fainted?
-            next if b.hasActiveAbility?(:SOUNDPROOF)
             b.pbCureStatus(true, :SLEEP)
         end
     end,
@@ -1314,12 +1354,6 @@ GameData::BattleEffect.register_effect(:Battler, {
     :real_name => "Choice Locking",
     :type => :Move,
     :info_displayed => false,
-})
-
-GameData::BattleEffect.register_effect(:Battler, {
-    :id => :BallFetch,
-    :real_name => "BallFetch",
-    :type => :Item,
 })
 
 GameData::BattleEffect.register_effect(:Battler, {
@@ -1456,11 +1490,6 @@ GameData::BattleEffect.register_effect(:Battler, {
     :apply_proc => proc do |battle, battler, value|
         battle.pbDisplay(_INTL("{1} will be flinch immune for {2} more turns!", battler.pbThis, value-1))
     end,
-})
-
-GameData::BattleEffect.register_effect(:Battler, {
-    :id => :Enlightened,
-    :real_name => "Ignores Added Effects",
 })
 
 GameData::BattleEffect.register_effect(:Battler, {
@@ -1696,27 +1725,11 @@ GameData::BattleEffect.register_effect(:Battler, {
 })
 
 GameData::BattleEffect.register_effect(:Battler, {
-    :id => :Maestro,
-    :real_name => "Maestro",
-    :resets_eor	=> true,
-})
-
-GameData::BattleEffect.register_effect(:Battler, {
-    :id => :GaleWings,
-    :real_name => "GaleWings",
-    :resets_eor	=> true,
-})
-
-GameData::BattleEffect.register_effect(:Battler, {
-    :id => :TrenchCarver,
-    :real_name => "Trench Carver",
-    :resets_eor	=> true,
-})
-
-GameData::BattleEffect.register_effect(:Battler, {
-    :id => :SwiftStomps,
-    :real_name => "Swift Stomps",
-    :resets_eor	=> true,
+    :id => :MoveSpeedDoubled,
+    :real_name => "Move Speed Doubled",
+    :type => :Ability,
+    :resets_on_cancel => true,
+    :resets_battlers_eot => true,
 })
 
 GameData::BattleEffect.register_effect(:Battler, {
@@ -1791,7 +1804,8 @@ GameData::BattleEffect.register_effect(:Battler, {
     :real_name => "Indestructible",
     :type => :Type,
     :apply_proc => proc do |battle, battler, value|
-        battle.pbDisplay(_INTL("{1} is now immune to #{value}-type!", battler.pbThis(true)))
+        typeName = GameData::Type.get(value).name
+        battle.pbDisplay(_INTL("{1} is now immune to {2}-type!", battler.pbThis, typeName))
     end,
 })
 
@@ -1807,7 +1821,7 @@ GameData::BattleEffect.register_effect(:Battler, {
     :ticks_down => true,
     :multi_turn_tracker => true,
     :apply_proc => proc do |battle, battler, _value|
-        battle.pbDisplay(_INTL("{1} is exhausted. They must rest next turn.", battler.pbThis))
+        battle.pbDisplay(_INTL("{1} is exhausted. They must Rest next turn.", battler.pbThis))
         battler.currentMove = :REST 
     end,
 })
@@ -1821,6 +1835,7 @@ GameData::BattleEffect.register_effect(:Battler, {
     :id => :ProtectFailure,
     :real_name => "Protect Will Fail",
     :resets_on_move_start_no_special => true,
+    :resets_on_cancel => true,
 })
 
 GameData::BattleEffect.register_effect(:Battler, {
@@ -1835,8 +1850,8 @@ GameData::BattleEffect.register_effect(:Battler, {
     :real_name => "King's Shield",
     :resets_eor	=> true,
     :protection_info => {
-        :hit_proc => proc do |user, _target, move, _battle|
-            user.tryLowerStat(:ATTACK, user, increment: 2) if move.physicalMove?
+        :hit_proc => proc do |user, target, move, _battle|
+            user.tryLowerStat(:ATTACK, target, increment: 2) if move.physicalMove?
         end,
         :does_negate_proc => proc do |_user, _target, move, _battle|
             move.damagingMove?
@@ -1849,8 +1864,8 @@ GameData::BattleEffect.register_effect(:Battler, {
     :real_name => "Shining Shell",
     :resets_eor	=> true,
     :protection_info => {
-        :hit_proc => proc do |user, _target, move, _battle|
-            user.tryLowerStat(:SPECIAL_ATTACK, user, increment: 2) if move.specialMove?
+        :hit_proc => proc do |user, target, move, _battle|
+            user.tryLowerStat(:SPECIAL_ATTACK, target, increment: 2) if move.specialMove?
         end,
         :does_negate_proc => proc do |_user, _target, move, _battle|
             move.damagingMove?
@@ -1863,8 +1878,8 @@ GameData::BattleEffect.register_effect(:Battler, {
     :real_name => "Obstruct",
     :resets_eor	=> true,
     :protection_info => {
-        :hit_proc => proc do |user, _target, move, _battle|
-            user.tryLowerStat(:DEFENSE, user, increment: 4) if move.physicalMove?
+        :hit_proc => proc do |user, target, move, _battle|
+            user.tryLowerStat(:DEFENSE, target, increment: 4) if move.physicalMove?
         end,
         :does_negate_proc => proc do |_user, _target, move, _battle|
             move.damagingMove?
@@ -1877,8 +1892,8 @@ GameData::BattleEffect.register_effect(:Battler, {
     :real_name => "Reverb Ward",
     :resets_eor	=> true,
     :protection_info => {
-        :hit_proc => proc do |user, _target, move, _battle|
-            user.tryLowerStat(:SPECIAL_DEFENSE, user, increment: 4) if move.specialMove?
+        :hit_proc => proc do |user, target, move, _battle|
+            user.tryLowerStat(:SPECIAL_DEFENSE, target, increment: 4) if move.specialMove?
         end,
         :does_negate_proc => proc do |_user, _target, move, _battle|
             move.damagingMove?
@@ -1955,20 +1970,6 @@ GameData::BattleEffect.register_effect(:Battler, {
     :protection_info => {
         :hit_proc => proc do |user, target, move, battle|
             battle.forceUseMove(target, :GRANITEHEAD, user.index)
-        end,
-        :does_negate_proc => proc do |_user, _target, move, _battle|
-            move.damagingMove?
-        end,
-    },
-})
-
-GameData::BattleEffect.register_effect(:Battler, {
-    :id => :Quarantine,
-    :real_name => "Quarantine",
-    :resets_eor	=> true,
-    :protection_info => {
-        :hit_proc => proc do |user, target, move, battle|
-            user.applyEffect(:Disable,3) if user.canBeDisabled?(true,move)
         end,
         :does_negate_proc => proc do |_user, _target, move, _battle|
             move.damagingMove?
@@ -2067,4 +2068,16 @@ GameData::BattleEffect.register_effect(:Battler, {
     :id => :AutoPilot,
     :real_name => "Auto-Pilot",
     :resets_eor => true,
+})
+
+GameData::BattleEffect.register_effect(:Battler, {
+    :id => :LastGasp,
+    :real_name => "Last Gasp",
+    :trapping => true,
+    :apply_proc => proc do |battle, battler, _value|
+        battle.pbDisplay(_INTL("{1} can't take damage or switch out!", battler.pbThis))
+    end,
+    :disable_proc => proc do |battle, battler|
+        raise _INTL("Last Gasp was disabled somehow.")
+    end,
 })

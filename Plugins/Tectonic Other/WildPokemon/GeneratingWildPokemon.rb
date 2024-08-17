@@ -16,41 +16,59 @@ def pbGenerateWildPokemon(species,level,ignoreCap = false,skipAlterations = fals
   # Give the wild Pokémon a held item
   item = generateWildHeldItem(genwildpoke,herdingActive?)
   genwildpoke.giveItem(item) if item
-  # Shiny Charm makes shiny Pokémon more likely to generate
-  genwildpoke.shinyRerolls = 1
-  $PokemonBag.pbQuantity(:SHINYCHARM).times do
-    genwildpoke.shinyRerolls *= 2
-  end
   # Trigger events that may alter the generated Pokémon further
   Events.onWildPokemonCreate.trigger(nil,genwildpoke) unless skipAlterations
-  # Give it however many chances to be shiny
-  (genwildpoke.shinyRerolls - 1).times do
-    break if genwildpoke.shiny?
-    genwildpoke.regeneratePersonalID
-    genwildpoke.shiny = nil
-  end
-  #genwildpoke.shiny_variant = true if genwildpoke.shiny? && rand(4) < 1
   return genwildpoke
 end
 
+WILD_ITEM_CHANCE_COMMON = 35
+WILD_ITEM_CHANCE_UNCOMMON = 10
+WILD_ITEM_CHANCE_RARE = 2
+
 def generateWildHeldItem(pokemon,increasedChance=false)
-  item = nil
-  items = pokemon.wildHoldItems
-  chances = [50,5,1]
-  itemrnd = rand(100)
-  itemrnd = [itemrnd-20,0].max if increasedChance
-  if (items[0]==items[1] && items[1]==items[2]) || itemrnd<chances[0]
-    item = items[0]
-  elsif itemrnd<(chances[0]+chances[1])
-    item = items[1]
-  elsif itemrnd<(chances[0]+chances[1]+chances[2])
-    item = items[2]
+  if pokemon.is_a?(Symbol)
+    itemsWithRarities = GameData::Species.get(pokemon).wildHeldItemsWithRarities
+  else
+    itemsWithRarities = pokemon.wildHeldItemsWithRarities
   end
-  return item
+  
+  return nil if itemsWithRarities.empty?
+
+  itemRoll = rand(100)
+  itemRoll -= 20 if increasedChance
+  itemRoll = 0 if itemRoll < 0
+
+  totalRarity = 0
+  itemsWithRarities.each do |item, rarity|
+    totalRarity += rarity
+    next unless itemRoll < totalRarity
+    return item
+  end
+
+  return nil
 end
 
-class Pokemon
-	attr_accessor :shinyRerolls
+def runItemGenerationTest(pokemon,increasedChance=false,testCount = 10000)
+  echoln("Generating a test for wild held items generated for #{pokemon}")
+
+  itemCounts = {}
+  testCount.times do
+    itemGenerated = generateWildHeldItem(pokemon,increasedChance)
+    next unless itemGenerated
+    if itemCounts.key?(itemGenerated)
+      itemCounts[itemGenerated] += 1
+    else
+      itemCounts[itemGenerated] = 0
+    end
+  end
+
+  itemCounts.each do |item, count|
+    echoln("Item #{item} was generated #{count} times, which is #{(100 * count / testCount.to_f).round(1)} percent of the time")
+  end
+end
+
+def RIGT(pokemon,increasedChance=false,testCount = 1000)
+  runItemGenerationTest(pokemon,increasedChance,testCount)
 end
 
 def herdingActive?

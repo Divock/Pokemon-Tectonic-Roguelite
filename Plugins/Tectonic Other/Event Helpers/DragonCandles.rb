@@ -1,18 +1,3 @@
-class PokemonGlobalMetadata
-    attr_writer :dragonFlamesCount
-    attr_writer :puzzlesCompleted
-
-    def dragonFlamesCount
-        @dragonFlamesCount = 0 if @dragonFlamesCount.nil?
-        return @dragonFlamesCount
-    end
-
-    def puzzlesCompleted
-        @puzzlesCompleted = [] if @puzzlesCompleted.nil?
-        return @puzzlesCompleted
-    end
-end
-
 def takeDragonFlame(triggerEventID = -1)
     if candlePuzzlesCompleted?
         pbMessage(_INTL("The flame refuses to budge!"))
@@ -82,6 +67,8 @@ def candlePuzzlesCompleted?(mapID = -1)
     return false
 end
 
+CATACOMBS_MAPS_IDS = [282,361,362]
+
 # Remove all dragon flames from player on map exit
 Events.onMapChanging += proc { |_sender,e|
     newmapID = e[0]
@@ -99,7 +86,7 @@ Events.onMapChanging += proc { |_sender,e|
     $PokemonGlobal.dragonFlamesCount = 0
 
     # If one of the catacombs maps
-    if [282,361,362].include?(newmapID)
+    if CATACOMBS_MAPS_IDS.include?(newmapID)
         unless candlePuzzlesCompleted?(newmapID)
             resetCatacombs(newmapID)
         else

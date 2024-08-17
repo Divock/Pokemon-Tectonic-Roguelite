@@ -11,14 +11,14 @@ BattleHandlers::TargetAbilityOnHit.add(:SANDBURST,
 
 BattleHandlers::TargetAbilityOnHit.add(:INNERLIGHT,
     proc { |ability, user, target, move, battle, aiCheck, aiNumHits|
-        score = pbBattleWeatherAbility(ability, :Sun, target, battle, false, true, aiCheck)
+        score = pbBattleWeatherAbility(ability, :Sunshine, target, battle, false, true, aiCheck)
         next score * -1 if aiCheck
     }
 )
 
 BattleHandlers::TargetAbilityOnHit.add(:STORMBRINGER,
     proc { |ability, user, target, move, battle, aiCheck, aiNumHits|
-        score = pbBattleWeatherAbility(ability, :Rain, target, battle, false, true, aiCheck)
+        score = pbBattleWeatherAbility(ability, :Rainstorm, target, battle, false, true, aiCheck)
         next score * -1 if aiCheck
     }
 )
@@ -342,16 +342,16 @@ BattleHandlers::TargetAbilityOnHit.add(:FRIGIDREFLECTION,
     }
 )
 
-BattleHandlers::TargetAbilityOnHit.add(:SHOCKRESPONSE,
+BattleHandlers::TargetAbilityOnHit.add(:HUGGABLE,
     proc { |ability, user, target, move, battle, aiCheck, aiNumHits|
-          next if target.fainted?
-          next unless move.baseDamage >= 100
-          if aiCheck
+        next if target.fainted?
+        next unless move.baseDamage >= 95
+        if aiCheck
             score = -5
             score -= getNumbEffectScore(target, user)
             next score
-          end
-          battle.forceUseMove(target, :NUZZLE, target.index, ability: ability)
+        end
+        battle.forceUseMove(target, :NUZZLE, user.index, ability: ability)
     }
 )
 
@@ -543,7 +543,7 @@ BattleHandlers::TargetAbilityOnHit.add(:MUMMY,
     proc { |ability, user, target, move, battle, aiCheck, aiNumHits|
         next unless move.physicalMove?
         next if user.fainted?
-        next if user.unstoppableAbility?
+        next if user.immutableAbility?
         next if user.hasAbility?(ability)
         next -10 if aiCheck
         user.replaceAbility(ability, user.opposes?(target))
@@ -554,7 +554,7 @@ BattleHandlers::TargetAbilityOnHit.add(:INFECTED,
     proc { |ability, user, target, move, battle, aiCheck, aiNumHits|
         next unless move.physicalMove?
         next if user.fainted?
-        next if user.unstoppableAbility?
+        next if user.immutableAbility?
         next if user.hasAbility?(ability)
         next unless user.canChangeType?
         next -15 if aiCheck
@@ -567,7 +567,7 @@ BattleHandlers::TargetAbilityOnHit.add(:WANDERINGSPIRIT,
     proc { |ability, user, target, move, battle, aiCheck, aiNumHits|
         next unless move.physicalMove?
         next if user.fainted?
-        next if user.unstoppableAbility?
+        next if user.immutableAbility?
         next if user.hasAbility?(ability)
         oldAbil = user.firstAbility
         next unless oldAbil
@@ -582,6 +582,7 @@ BattleHandlers::TargetAbilityOnHit.add(:THUNDERSTRUCK,
         if aiCheck
             next target.pbHasAttackingType?(:ELECTRIC) ? -40 : 0
         else
+            next if target.fainted? || target.effectActive?(:Charge)
             target.showMyAbilitySplash(ability)
             target.applyEffect(:Charge)
             target.hideMyAbilitySplash

@@ -6,9 +6,12 @@ module GameData
       attr_reader :real_name_plural
       attr_reader :pocket
       attr_reader :price
+      attr_reader :sell_price
       attr_reader :real_description
       attr_reader :field_use
       attr_reader :battle_use
+      attr_reader :consumable
+      attr_reader :flags
       attr_reader :type
       attr_reader :move
       attr_reader :super
@@ -16,6 +19,28 @@ module GameData
   
       DATA = {}
       DATA_FILENAME = "items.dat"
+
+      FLAG_INDEX = {}
+      FLAGS_INDEX_DATA_FILENAME = "items_indexed_by_flag.dat"
+      
+      MACHINE_ORDER = {}
+      MACHINE_ORDER_DATA_FILENAME = "machine_order.dat"
+
+      SCHEMA = {
+        "Name"        => [:name,        "s"],
+        "NamePlural"  => [:name_plural, "s"],
+        "Pocket"      => [:pocket,      "v"],
+        "Price"       => [:price,       "u"],
+        "SellPrice"   => [:sell_price,  "u"],
+        "Description" => [:description, "q"],
+        "FieldUse"    => [:field_use,   "e", { "OnPokemon" => 1, "Direct" => 2, "TM" => 3,
+                                              "HM" => 4, "TR" => 5 }],
+        "BattleUse"   => [:battle_use,  "e", { "OnPokemon" => 1, "OnMove" => 2, "OnBattler" => 3,
+                                              "OnFoe" => 4, "Direct" => 5 }],
+        "Consumable"  => [:consumable,  "b"],
+        "Flags"       => [:flags,       "*s"],
+        "Move"        => [:move,        "e", :Move]
+      }
   
       extend ClassMethods
       include InstanceMethods
@@ -70,29 +95,64 @@ module GameData
       end
   
       def initialize(hash)
+        if !hash[:sell_price] && hash[:price]
+          hash[:sell_price] = hash[:price] / 2
+        end
+
         @id               = hash[:id]
         @id_number        = hash[:id_number]   || -1
         @real_name        = hash[:name]        || "Unnamed"
         @real_name_plural = hash[:name_plural] || "Unnamed"
         @pocket           = hash[:pocket]      || 1
         @price            = hash[:price]       || 0
-        @real_description = hash[:description] || "???"
+        @sell_price       = hash[:sell_price]  || 0
+        @real_description = hash[:description] || ""
         @field_use        = hash[:field_use]   || 0
         @battle_use       = hash[:battle_use]  || 0
         @type             = hash[:type]        || 0
+        @flags            = hash[:flags]       || []
+        @consumable       = hash[:consumable]
+        @consumable       = !is_important? if @consumable.nil?
         @move             = hash[:move]
         @super            = hash[:super]       || false
         @cut              = hash[:cut]       || false
+
+        @flags.each do |flag|
+          if FLAG_INDEX.key?(flag)
+            FLAG_INDEX[flag].push(@id)
+          else
+            FLAG_INDEX[flag] = [@id]
+          end
+        end
       end
   
       # @return [String] the translated name of this item
       def name
-        return pbGetMessageFromHash(MessageTypes::Items, @real_name)
+        if is_TM?
+          return _INTL("TM {1}",GameData::Move.get(@move).name)
+        elsif is_TR?
+          return _INTL("TR {1}",GameData::Move.get(@move).name)
+        elsif is_HM?
+          return _INTL("HM {1}",GameData::Move.get(@move).name)
+        elsif @id == :AIDKIT && $PokemonGlobal&.teamHealerUpgrades > 0
+          upgradeCount = $PokemonGlobal.teamHealerUpgrades || 0
+          return _INTL("{1} +{2}",pbGetMessageFromHash(MessageTypes::Items, @real_name),upgradeCount)
+        else
+          return pbGetMessageFromHash(MessageTypes::Items, @real_name)
+        end
       end
   
       # @return [String] the translated plural version of the name of this item
       def name_plural
-        return pbGetMessageFromHash(MessageTypes::ItemPlurals, @real_name_plural)
+        if is_machine?
+          return _INTL("{1} TMs",GameData::Move.get(@move).name_plural)
+        elsif is_TR?
+          return _INTL("{1} TRs",GameData::Move.get(@move).name_plural)
+        elsif is_HM?
+          return _INTL("{1} HMs",GameData::Move.get(@move).name_plural)
+        else
+          return pbGetMessageFromHash(MessageTypes::ItemPlurals, @real_name_plural)
+        end
       end
   
       # @return [String] the translated description of this item
@@ -108,19 +168,105 @@ module GameData
       def is_HM?;                   return @field_use == 4; end
       def is_TR?;                   return @field_use == 6; end
       def is_machine?;              return is_TM? || is_HM? || is_TR?; end
-      def is_mail?;                 return @type == 1 || @type == 2; end
-      def is_icon_mail?;            return @type == 2; end
-      def is_poke_ball?;            return @type == 3 || @type == 4; end
-      def is_berry?;                return @type == 5; end
-      def is_key_item?;             return @type == 6 || @type == 13; end
-      def is_single_key_item?;      return @type == 6; end
-      def is_evolution_stone?;      return @type == 7; end
-      def is_fossil?;               return @type == 8; end
-      def is_apricorn?;             return @type == 9; end
-      def is_gem?;                  return @type == 10; end
-      def is_mulch?;                return @type == 11; end
-      def is_mega_stone?;           return @type == 12; end   # Does NOT include Red Orb/Blue Orb
-      def is_consumable_key_item?;  return @type == 13; end
+      def machine_index
+        return GameData::Item.getMachineIndex(@id)
+      end
+
+      def is_poke_ball?
+        return @flags.include?("PokeBall")
+      end
+
+      def is_snag_ball?
+        return @flags.include?("SnagBall")
+      end
+
+      def is_mail?
+        return @flags.include?("Mail")
+      end
+
+      def is_icon_mail?
+        return @flags.include?("IconMail")
+      end
+
+      def is_berry?
+        return @flags.include?("Berry")
+      end
+
+      def is_clothing?
+        return @flags.include?("Clothing")
+      end
+
+      def is_choice_locking?
+        return @flags.include?("ChoiceLocking")
+      end
+
+      def is_no_status_use?
+        return @flags.include?("NoStatusUse")
+      end
+
+      def is_levitation?
+        return @flags.include?("Levitation")
+      end
+
+      def is_endure?
+        return @flags.include?("Endure")
+      end
+
+      def is_weather_rock?
+        return @flags.include?("WeatherRock")
+      end
+
+      def is_attacker_recoil?
+        return @flags.include?("AttackerRecoil")
+      end
+
+      def is_herb?
+        return @flags.include?("Herb")
+      end
+
+      def is_leftovers?
+        return @flags.include?("Leftovers")
+      end
+
+      def is_pinch?
+        return @flags.include?("Pinch")
+      end
+
+      def is_key_item?
+        return @flags.include?("KeyItem")
+      end
+
+      def is_consumable_key_item?
+        return @flags.include?("KeyItem") && @consumable
+      end
+
+      def is_single_key_item?
+        return @flags.include?("KeyItem") && !@consumable
+      end
+
+      def is_evolution_stone?
+        return @flags.include?("EvolutionStone")
+      end
+
+      def is_fossil?
+        return @flags.include?("Fossil")
+      end
+
+      def is_gem?
+        return @flags.include?("TypeGem")
+      end
+
+      def is_mega_stone?
+        return @flags.include?("MegaStone")
+      end
+
+      def is_mulch?
+        return @flags.include?("Mulch")
+      end
+
+      def is_type_setting?
+        return @flags.include?("TypeSetting")
+      end
   
       def is_important?
         return true if is_key_item? || is_HM? || is_TM?
@@ -133,6 +279,10 @@ module GameData
       end
   
       def can_hold?;           return !is_important? && @pocket == 5; end
+
+      def consumed_after_use?
+        return !is_important? && @consumable
+      end
   
       def unlosable?(species, ability)
         return false if species == :ARCEUS && ability != :MULTITYPE
@@ -169,6 +319,33 @@ module GameData
         return false if @super && !isTrainer
         return true
       end
+
+      def self.getByFlag(flag)
+        if FLAG_INDEX.key?(flag)
+          return FLAG_INDEX[flag]
+        else
+          return []
+        end
+      end
+
+      def self.getMachineIndex(machineItemID)
+        unless self.get(machineItemID)&.is_machine?
+          raise _INTL("Cannot get machine index of item {1} ID. It either doesn't exist or isn't a machine!", machineItemID)
+        end
+        return MACHINE_ORDER[machineItemID] || -1
+      end
+
+      def self.load
+        super
+        const_set(:FLAG_INDEX, load_data("Data/#{self::FLAGS_INDEX_DATA_FILENAME}"))
+        const_set(:MACHINE_ORDER, load_data("Data/#{self::MACHINE_ORDER_DATA_FILENAME}"))
+      end
+
+      def self.save
+        super
+        save_data(self::FLAG_INDEX, "Data/#{self::FLAGS_INDEX_DATA_FILENAME}")
+        save_data(self::MACHINE_ORDER, "Data/#{self::MACHINE_ORDER_DATA_FILENAME}")
+      end
     end
 end
 
@@ -180,63 +357,83 @@ module Compiler
   #=============================================================================
   def compile_items
     GameData::Item::DATA.clear
+    schema = GameData::Item::SCHEMA
     item_names        = []
     item_names_plural = []
     item_descriptions = []
-    idBase = 0
-    ["PBS/items.txt","PBS/items_super.txt","PBS/items_cut.txt"].each do |path|
-      idNumber = idBase
+    item_hash         = nil
+    idx = 0
+    ["PBS/items.txt","PBS/items_super.txt","PBS/items_machine.txt","PBS/items_cut.txt"].each do |path|
       # Read each line of items.txt at a time and compile it into an item
-      pbCompilerEachCommentedLine(path) { |line, line_no|
-        idNumber += 1
-        line = pbGetCsvRecord(line, line_no, [0, "vnssuusuuUN"])
-        item_number = idNumber
-        item_symbol = line[1].to_sym
-        if GameData::Item::DATA[item_number]
-          raise _INTL("Item ID number '{1}' is used twice.\r\n{2}", item_number, FileLineData.linereport)
-        elsif GameData::Item::DATA[item_symbol]
-          raise _INTL("Item ID '{1}' is used twice.\r\n{2}", item_symbol, FileLineData.linereport)
+      pbCompilerEachPreppedLine(path) { |line, line_no|
+        idx += 1
+        if line[/^\s*\[\s*(.+)\s*\]\s*$/]   # New section [item_id]
+          # Add previous item's data to records
+          GameData::Item.register(item_hash) if item_hash
+          # Parse item ID
+          item_id = $~[1].to_sym
+          if GameData::Item.exists?(item_id)
+            raise _INTL("Item ID '{1}' is used twice.\r\n{2}", item_id, FileLineData.linereport)
+          end
+          # Construct item hash
+          item_hash = {
+            :id         => item_id,
+            :id_number  => idx,
+            :cut        => path == "PBS/items_cut.txt",
+            :super      => path == "PBS/items_super.txt",
+          }
+        elsif line[/^\s*(\w+)\s*=\s*(.*)\s*$/]   # XXX=YYY lines
+          if !item_hash
+            raise _INTL("Expected a section at the beginning of the file.\r\n{1}", FileLineData.linereport)
+          end
+          # Parse property and value
+          property_name = $~[1]
+          line_schema = schema[property_name]
+          next if !line_schema
+          property_value = pbGetCsvRecord($~[2], line_no, line_schema)
+          # Record XXX=YYY setting
+          item_hash[line_schema[0]] = property_value
+          case property_name
+          when "Name"
+            item_names.push(item_hash[:name])
+          when "NamePlural"
+            item_names_plural.push(item_hash[:name_plural])
+          when "Description"
+            item_descriptions.push(item_hash[:description])
+          end
         end
-        # Construct item hash
-        item_hash = {
-          :id_number   => item_number,
-          :id          => item_symbol,
-          :name        => line[2],
-          :name_plural => line[3],
-          :pocket      => line[4],
-          :price       => line[5],
-          :description => line[6],
-          :field_use   => line[7],
-          :battle_use  => line[8],
-          :type        => line[9],
-          :cut         => path == "PBS/items_cut.txt",
-          :super       => path == "PBS/items_super.txt",
-        }
-        item_hash[:move] = parseMove(line[10]) if !nil_or_empty?(line[10])
-        # Add item's data to records
-        GameData::Item.register(item_hash)
-        item_names[item_number]        = item_hash[:name]
-        item_names_plural[item_number] = item_hash[:name_plural]
-        item_descriptions[item_number] = item_hash[:description]
       }
-      idBase += 1000
     end
+    # Add last item's data to records
+    GameData::Item.register(item_hash) if item_hash
+
+    compile_machine_order
+
     # Save all data
     GameData::Item.save
     MessageTypes.setMessagesAsHash(MessageTypes::Items, item_names)
     MessageTypes.setMessagesAsHash(MessageTypes::ItemPlurals, item_names_plural)
     MessageTypes.setMessagesAsHash(MessageTypes::ItemDescriptions, item_descriptions)
     Graphics.update
+
+    BattleHandlers::LoadDataDependentItemHandlers.trigger
   end
 
-    #=============================================================================
+  def compile_machine_order
+    GameData::Item::MACHINE_ORDER.clear
+    pbCompilerEachPreppedLine("PBS/items_machine_order.txt") { |line, line_no|
+      GameData::Item::MACHINE_ORDER[line.to_sym] = line_no
+    }
+  end
+
+  #=============================================================================
   # Save item data to PBS file
   #=============================================================================
   def write_items
     File.open("PBS/items.txt", "wb") { |f|
       add_PBS_header_to_file(f)
       GameData::Item.each do |i|
-        break if i.cut || i.super
+        next if i.cut || i.super || i.is_machine?
         write_item(f,i)
       end
     }
@@ -254,25 +451,49 @@ module Compiler
         write_item(f,i)
       end
     }
+    File.open("PBS/items_machine.txt", "wb") { |f|
+      add_PBS_header_to_file(f)
+      GameData::Item.each do |i|
+        next if i.cut || i.super
+        next unless i.is_machine?
+        write_item(f,i)
+      end
+    }
     Graphics.update
+
+    write_machine_order
   end
 
-  def write_item(f,i)
-    move_name = (i.move) ? GameData::Move.get(i.move).id.to_s : ""
-    sprintf_text = "%d,%s,%s,%s,%d,%d,%s,%d,%d,%d\r\n"
-    sprintf_text = "%d,%s,%s,%s,%d,%d,%s,%d,%d,%d,%s\r\n" if move_name != ""
-    f.write(sprintf(sprintf_text,
-      i.id_number,
-      csvQuote(i.id.to_s),
-      csvQuote(i.real_name),
-      csvQuote(i.real_name_plural),
-      i.pocket,
-      i.price,
-      csvQuoteAlways(i.real_description),
-      i.field_use,
-      i.battle_use,
-      i.type,
-      csvQuote(move_name)
-    ))
+  def write_machine_order
+    File.open("PBS/items_machine_order.txt", "wb") { |f|
+      GameData::Item::MACHINE_ORDER.each do |machine_id, index|
+        f.write(sprintf("%s\r\n",machine_id))
+      end
+    }
+  end
+
+  def write_item(f,item)
+    f.write("\#-------------------------------\r\n")
+    f.write(sprintf("[%s]\r\n", item.id))
+    f.write(sprintf("Name = %s\r\n", item.real_name))
+    f.write(sprintf("NamePlural = %s\r\n", item.real_name_plural))
+    f.write(sprintf("Pocket = %d\r\n", item.pocket))
+    f.write(sprintf("Price = %d\r\n", item.price))
+    f.write(sprintf("SellPrice = %d\r\n", item.sell_price)) if item.sell_price != item.price / 2
+    field_use = GameData::Item::SCHEMA["FieldUse"][2].key(item.field_use)
+    f.write(sprintf("FieldUse = %s\r\n", field_use)) if field_use
+    battle_use = GameData::Item::SCHEMA["BattleUse"][2].key(item.battle_use)
+    f.write(sprintf("BattleUse = %s\r\n", battle_use)) if battle_use
+    # Assume important items aren't consumable
+    # and other items are
+    # So only note the exceptions
+    if item.is_important?
+      f.write(sprintf("Consumable = true\r\n")) if item.consumable
+    else
+      f.write(sprintf("Consumable = false\r\n")) unless item.consumable
+    end
+    f.write(sprintf("Flags = %s\r\n", item.flags.join(","))) if item.flags.length > 0
+    f.write(sprintf("Move = %s\r\n", item.move)) if item.move
+    f.write(sprintf("Description = %s\r\n", item.real_description)) unless item.real_description.blank?
   end
 end

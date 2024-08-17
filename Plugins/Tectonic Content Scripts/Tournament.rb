@@ -25,10 +25,6 @@ POOL_2 = [
 
 CHAMPION = [:TRAINER_Zain,"Zain",2,3,11]
 
-class PokemonGlobalMetadata
-    attr_accessor :tournament
-end
-
 class RandomTournament
     attr_reader :matches
     attr_reader :matchesWon
@@ -131,7 +127,7 @@ end
 
 def winTournamentMatch()
     $PokemonGlobal.tournament.winMatch()
-    pbMessage("\\wmThe victor is \\PN!\\me[Bug catching 1st]")
+    pbMessage(_INTL("\\wmThe victor is \\PN!\\me[Bug catching 1st]"))
 end
 
 def enterTournament()
@@ -212,11 +208,6 @@ def displayRoundOdds(round)
         pbMessage(_INTL("Odds are displayed for the #{ordinal} round matches, gathered from a spectator poll."))
         pbMessage(_INTL("#{percent} percent of respondents expect you to win against #{nextOpponentName()}."))
     end
-end
-
-def tournamentTrainerEnd(event,map_id)
-    pbTrainerEnd
-    pbSetSelfSwitch(event.id,'A',false,map_id)
 end
 
 def setCenterToBackupNurse

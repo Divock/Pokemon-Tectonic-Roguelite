@@ -1,13 +1,17 @@
 def openSingleDexScreen(pokemon)
 	if pokemon.respond_to?('species')
 		$Trainer.pokedex.register_last_seen(pokemon)
-		pokemon = pokemon.species
+		species = pokemon.species
+	else
+		speciesData = GameData::Species.get(pokemon)
+		species = speciesData.species
+		$Trainer.pokedex.set_last_form_seen(speciesData.species, 0, speciesData.form)
 	end
 	ret = nil
 	pbFadeOutIn {
 		scene = PokemonPokedexInfo_Scene.new
 		screen = PokemonPokedexInfoScreen.new(scene)
-		ret = screen.pbStartSceneSingle(pokemon)
+		ret = screen.pbStartSceneSingle(species)
 	}
 	if ret.is_a?(Symbol)
 		echoln("Opening single dex screen from hyperlink to: #{ret}")
@@ -25,36 +29,36 @@ end
 
 def describeEvolutionMethod(method,parameter=0)
     case method
-    when :Level,:Ninjask; return _INTL("at level #{parameter}")
-    when :LevelMale; return _INTL("at level #{parameter} if it's male")
-    when :LevelFemale; return _INTL("at level #{parameter} if it's female")
-    when :LevelDay; return _INTL("at level #{parameter} during the day")
-    when :LevelNight; return _INTL("at level #{parameter} during nighttime")
-    when :LevelRain; return _INTL("at level #{parameter} while raining")
-    when :LevelDarkInParty; return _INTL("at level #{parameter} while a dark type is in the party")
-    when :AttackGreater; return _INTL("at level #{parameter} if it has more attack than defense")
-    when :AtkDefEqual; return _INTL("at level #{parameter} if it has attack equal to defense" )
-    when :DefenseGreater; return _INTL("at level #{parameter} if it has more defense than attack" )
-    when :Silcoon; return _INTL("at level #{parameter} half of the time")
-    when :Cascoon; return _INTL("at level #{parameter} the other half of the time")
-	when :Ability0; return _INTL("at level #{parameter} if it has the first of its possible abilities")
-	when :Ability1; return _INTL("at level #{parameter} if it has the second of its possible abilities")
+    when :Level,:Ninjask; return _INTL("at level {1}", parameter)
+    when :LevelMale; return _INTL("at level {1} if it's male", parameter)
+    when :LevelFemale; return _INTL("at level {1} if it's female", parameter)
+    when :LevelDay; return _INTL("at level {1} during the day", parameter)
+    when :LevelNight; return _INTL("at level {1} during nighttime", parameter)
+    when :LevelRain; return _INTL("at level {1} while raining", parameter)
+    when :LevelDarkInParty; return _INTL("at level {1} while a dark type is in the party", parameter)
+    when :AttackGreater; return _INTL("at level {1} if it has more attack than defense", parameter)
+    when :AtkDefEqual; return _INTL("at level {1} if it has attack equal to defense", parameter)
+    when :DefenseGreater; return _INTL("at level {1} if it has more defense than attack", parameter)
+    when :Silcoon; return _INTL("at level {1} half of the time", parameter)
+    when :Cascoon; return _INTL("at level {1} the other half of the time", parameter)
+	when :Ability0; return _INTL("at level {1} if it has the first of its possible abilities", parameter)
+	when :Ability1; return _INTL("at level {1} if it has the second of its possible abilities", parameter)
     when :Happiness; return _INTL("when leveled up while it has high happiness")
     when :MaxHappiness; return _INTL("when leveled up while it has maximum happiness")
     when :Beauty; return _INTL("when leveled up while it has maximum beauty")
-    when :HasMove; return _INTL("when leveled up while it knows the move #{GameData::Move.get(parameter).name}")
-    when :HasMoveType; return _INTL("when leveled up while it knows a move of the #{GameData::Move.get(parameter).name} type")
+    when :HasMove; return _INTL("when leveled up while it knows the move {1}", GameData::Move.get(parameter).name)
+    when :HasMoveType; return _INTL("when leveled up while it knows a move of the {1} type", GameData::Move.get(parameter).name)
     when :Location; return _INTL("when leveled up near a special location")
-    when :Item; return _INTL("when a #{GameData::Item.get(parameter).name} is used on it")
-    when :ItemMale; return _INTL("when a #{GameData::Item.get(parameter).name} is used on it if it's male")
-    when :ItemFemale; return _INTL("when a #{GameData::Item.get(parameter).name} is used on it if it's female")
+    when :Item; return _INTL("when a {1} is used on it", GameData::Item.get(parameter).name)
+    when :ItemMale; return _INTL("when a {1} is used on it if it's male", GameData::Item.get(parameter).name)
+    when :ItemFemale; return _INTL("when a {1} is used on it if it's female", GameData::Item.get(parameter).name)
     when :Trade; return _INTL("when traded")
-    when :TradeItem; return _INTL("when traded holding an #{GameData::Item.get(parameter).name}")
-	when :HasInParty; return _INTL("when leveled up while a #{GameData::Species.get(parameter).name} is also in the party")
+    when :TradeItem; return _INTL("when traded holding an {1}", GameData::Item.get(parameter).name)
+	when :HasInParty; return _INTL("when leveled up while a {1} is also in the party", GameData::Species.get(parameter).name)
 	when :Shedinja; return _INTL("also if you have an empty pokeball and party slot")
-    when :Originize; return _INTL("when a #{GameData::Item.get(:ORIGINORE).name} is used on it at level #{parameter}")
+    when :Originize; return _INTL("at level {1} if you spend an {2}", parameter, GameData::Item.get(:ORIGINORE).name)
 	end
-    return "via a method the programmer was too lazy to describe"
+    return _INTL("via a method the programmer was too lazy to describe")
 end
 
 def catchDifficultyFromRareness(rareness)
@@ -129,4 +133,8 @@ def roundUpToRelevantCap(level)
 		end
 	end
 	return [minNearestMapCap,minNearestItemCap].min
+end
+
+def speciesInfoViewable?(speciesID)
+    return $DEBUG || $Trainer.seen?(speciesID) || !GameData::Species.get(speciesID).isLegendary?
 end

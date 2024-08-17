@@ -43,8 +43,8 @@ class PokeBattle_Battle
     #=============================================================================
     def consumeItemInBag(item, idxBattler)
         return unless item
-        useType = GameData::Item.get(item).battle_use
-        return if useType == 0 || (useType >= 6 && useType <= 10)   # Not consumed upon use
+        itemData = GameData::Item.get(item)
+        return if itemData.battle_use == 0 || !itemData.consumed_after_use?
         if pbOwnedByPlayer?(idxBattler)
             raise _INTL("Tried to consume item that wasn't in the Bag somehow.") unless $PokemonBag.pbDeleteItem(item)
         else
@@ -59,9 +59,9 @@ class PokeBattle_Battle
     end
 
     def pbReturnUnusedItemToBag(item, idxBattler)
-        return if item!
-        useType = GameData::Item.get(item).battle_use
-        return if useType == 0 || (useType >= 6 && useType <= 10)   # Not consumed upon use
+        return if item.nil?
+        itemData = GameData::Item.get(item)
+        return if itemData.battle_use == 0 || !itemData.consumed_after_use?
         if pbOwnedByPlayer?(idxBattler)
             if $PokemonBag && $PokemonBag.pbCanStore?(item)
                 $PokemonBag.pbStoreItem(item)
@@ -125,8 +125,13 @@ class PokeBattle_Battle
     def pbUsePokeBallInBattle(item, idxBattler, userBattler)
         idxBattler = userBattler.index if idxBattler < 0
         battler = @battlers[idxBattler]
-        ItemHandlers.triggerUseInBattle(item, battler, self)
-        @choices[userBattler.index][1] = nil # Delete item from choice
+        if ItemHandlers.triggerUseInBattle(item, battler, self)
+            @choices[userBattler.index][1] = nil # Delete item from choice
+        elsif $PokemonBag&.pbCanStore?(item)
+            $PokemonBag.pbStoreItem(item)
+        else
+            raise _INTL("Couldn't return unused item to Bag somehow.")
+        end
     end
 
     # Uses an item in battle directly.

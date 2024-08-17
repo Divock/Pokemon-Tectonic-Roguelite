@@ -1,3 +1,12 @@
+ZAIN_2_BADGES_PHONECALL_GLOBAL = 230
+ZAIN_3_BADGES_PHONECALL_GLOBAL = 231
+GROUZ_AVATAR_PHONECALL_GLOBAL = 226
+CATACOMBS_PHONECALL_GLOBAL = 227
+WHITEBLOOM_PHONECALL_GLOBAL = 228
+BATTLE_MONUMENT_PHONECALL_GLOBAL = 229
+DR_HEKATA_PHONECALL_GLOBAL = 232
+ESTATE_PHONECALL_GLOBAL = 233
+
 Events.onBadgeEarned += proc { |_sender,_e|
     totalBadges = _e[1]
 	if totalBadges == 2
@@ -18,7 +27,7 @@ def gameWon?
 end
 
 Events.onMapChange += proc { |_sender, _e|
-	if playerIsOutdoors?()
+	if playerIsOutdoors?
 		if $PokemonGlobal.shouldProcGrouzAvatarCall
 			$game_switches[GROUZ_AVATAR_PHONECALL_GLOBAL] = true
 			$PokemonGlobal.shouldProcGrouzAvatarCall = false
@@ -34,20 +43,19 @@ Events.onMapChange += proc { |_sender, _e|
 		elsif $PokemonGlobal.shouldProc3BadgesZainCall
 			$game_switches[ZAIN_3_BADGES_PHONECALL_GLOBAL] = true
 			$PokemonGlobal.shouldProc3BadgesZainCall = false
-		end
+        end
 	end
 
 	if 		gameWon? &&
 			!$game_switches[99] && # Battle monument not yet unlocked
 			$game_map.map_id == 188 # In Prizca Castle
-		$game_switches[153] = true # Trigger the phonecall from Vanya
+		$game_switches[BATTLE_MONUMENT_PHONECALL_GLOBAL] = true # Trigger the phonecall from Vanya
 	end
 }
 
-class PokemonGlobalMetadata
-	attr_accessor :shouldProc2BadgesZainCall
-	attr_accessor :shouldProc3BadgesZainCall
-	attr_accessor :shouldProcGrouzAvatarCall
-	attr_accessor :shouldProcCatacombsCall
-	attr_accessor :shouldProcWhitebloomCall
-end
+Events.onStepTaken += proc { |_sender,_e|
+    if playerIsOutdoors? && $PokemonGlobal.shouldProcEstateCall
+        $game_switches[ESTATE_PHONECALL_GLOBAL] = true
+        $PokemonGlobal.shouldProcEstateCall = false
+    end
+}

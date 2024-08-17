@@ -106,6 +106,9 @@ class PokeBattle_Battle
         when :NearAlly
             return false if opposes?(idxUser, idxTarget)
             return false unless nearBattlers?(idxUser, idxTarget)
+        when :Ally
+            return false if idxUser == idxTarget
+            return false if opposes?(idxUser, idxTarget)
         when :UserOrNearAlly
             return true if idxUser == idxTarget
             return false if opposes?(idxUser, idxTarget)
@@ -115,7 +118,7 @@ class PokeBattle_Battle
         when :UserOrNearOther
             return true if idxUser == idxTarget
             return false unless nearBattlers?(idxUser, idxTarget)
-        when :NearFoe, :RandomNearFoe, :AllNearFoes
+        when :NearFoe, :RandomNearFoe, :AllNearFoes, :ClosestNearFoe
             return false unless opposes?(idxUser, idxTarget)
             return false unless nearBattlers?(idxUser, idxTarget)
         when :Foe
@@ -143,12 +146,10 @@ class PokeBattle_Battle
                 r = i + pbRandom(randomOrder.length - i)
                 randomOrder[i], randomOrder[r] = randomOrder[r], randomOrder[i]
             end
-            honorAura = false
             @priority.clear
             for i in 0..maxBattlerIndex
                 b = @battlers[i]
                 next unless b
-                honorAura = true if b.hasHonorAura?
             end
             for i in 0..maxBattlerIndex
                 b = @battlers[i]
@@ -195,7 +196,6 @@ class PokeBattle_Battle
                 @priority.push(bArray)
             end
             needRearranging = true
-            honorAura = false
         else
             if @field.effectActive?(:TrickRoom) != @priorityTrickRoom
                 needRearranging = true

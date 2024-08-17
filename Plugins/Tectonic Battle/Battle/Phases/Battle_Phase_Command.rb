@@ -125,21 +125,21 @@ class PokeBattle_Battle
             next false unless item
             battler = pkmn = nil
             case useType
-            when 1, 2, 6, 7 # Use on Pokémon/Pokémon's move
+            when 1, 2 # Use on Pokémon/Pokémon's move
                 next false unless ItemHandlers.hasBattleUseOnPokemon(item)
                 battler = pbFindBattler(idxPkmn, idxBattler)
                 pkmn    = pbParty(idxBattler)[idxPkmn]
                 next false unless pbCanUseItemOnPokemon?(item, pkmn, battler, itemScene)
-            when 3, 8   # Use on battler
+            when 3   # Use on battler
                 next false unless ItemHandlers.hasBattleUseOnBattler(item)
                 battler = pbFindBattler(idxPkmn, idxBattler)
                 pkmn    = battler.pokemon if battler
                 next false unless pbCanUseItemOnPokemon?(item, pkmn, battler, itemScene)
-            when 4, 9   # Poké Balls
+            when 4   # Poké Balls
                 next false if idxPkmn < 0
                 battler = @battlers[idxPkmn]
                 pkmn    = battler.pokemon if battler
-            when 5, 10 # No target (Poké Doll, Guard Spec., Launcher items)
+            when 5 # No target (Poké Doll, Guard Spec., Launcher items)
                 battler = @battlers[idxBattler]
                 pkmn    = battler.pokemon if battler
             else
@@ -220,7 +220,7 @@ class PokeBattle_Battle
         # Turn skipped due to ambush
         if @turnCount == 0 && @playerAmbushing
             # Player ambushes successfully!
-            pbDisplay(_INTL("Your foe was ambushed! You get a free turn!"))
+            pbDisplayBossNarration(_INTL("Your foe was <imp>ambushed</imp>! You get a free turn!"))
             eachOtherSideBattler do |b|
                 b.extraMovesPerTurn = 0
             end
@@ -262,7 +262,7 @@ class PokeBattle_Battle
         # Turn skipped due to ambush
         if @turnCount == 0 && @foeAmbushing
             # The player is ambushed by the foe!
-            pbDisplay(_INTL("You were ambushed! The foe gets a free turn!"))
+            pbDisplayBossNarration(_INTL("You were <imp>ambushed</imp>! The foe gets a free turn!"))
             eachSameSideBattler do |b|
                 b.extraMovesPerTurn = 0
             end
@@ -328,7 +328,7 @@ class PokeBattle_Battle
 
     def chooseAutoTestingTrainer(idxBattler)
         moveData = nil
-        while moveData.nil? || moveData.cut
+        while moveData.nil? || moveData.cut || moveData.zmove
             moveData = GameData::Move::DATA.values.sample
         end
         moveId = moveData.id

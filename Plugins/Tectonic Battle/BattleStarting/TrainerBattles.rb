@@ -9,10 +9,10 @@ def pbTrainerBattleCore(*args)
     if $Trainer.able_pokemon_count == 0 || debugControl
         if $DEBUG
             if pbConfirmMessageSerious(_INTL("Perfect battle?"))
-                $game_switches[94] = true
+                trackPerfectBattle(true)
                 pbMessage(_INTL("SKIPPING BATTLE PERFECT..."))
             else
-                $game_switches[94] = false
+                trackPerfectBattle(false)
                 pbMessage(_INTL("SKIPPING BATTLE..."))
             end
             pbMessage(_INTL("AFTER WINNING...")) if $Trainer.able_pokemon_count > 0
@@ -66,17 +66,7 @@ def pbTrainerBattleCore(*args)
        !%w[single 1v1 1v2 1v3].include?($PokemonTemp.battleRules["size"])
         room_for_partner = true
     end
-    if $PokemonGlobal.partner && !$PokemonTemp.battleRules["noPartner"] && room_for_partner
-        ally = NPCTrainer.new($PokemonGlobal.partner[1], $PokemonGlobal.partner[0])
-        ally.id    = $PokemonGlobal.partner[2]
-        ally.party = $PokemonGlobal.partner[3]
-        playerTrainers.push(ally)
-        playerParty = []
-        $Trainer.party.each { |pkmn| playerParty.push(pkmn) }
-        playerPartyStarts.push(playerParty.length)
-        ally.party.each { |pkmn| playerParty.push(pkmn) }
-        setBattleRule("double") unless $PokemonTemp.battleRules["size"]
-    end
+    playerParty = loadPartnerTrainer(playerTrainers, playerParty, playerPartyStarts) if room_for_partner
     # Create the battle scene (the visual side of it)
     scene = pbNewBattleScene
     # Create the battle class (the mechanics side of it)
@@ -112,7 +102,25 @@ def pbTrainerBattleCore(*args)
     pbSet(outcomeVar, decision)
     $PokemonGlobal.respawnPoint = nil
     refreshSpeakerWindow
+    $game_switches[TIME_OUT_SWITCH] = decision == 6 # Mark if the battle was a time-out victory
     return decision
+end
+
+def loadPartnerTrainer(playerTrainers, playerParty, playerPartyStarts)
+    if $PokemonGlobal.partner && !$PokemonTemp.battleRules["noPartner"]
+        ally = NPCTrainer.new($PokemonGlobal.partner[1], $PokemonGlobal.partner[0])
+        ally.id    = $PokemonGlobal.partner[2]
+        ally.party = $PokemonGlobal.partner[3]
+        ally.flags = $PokemonGlobal.partner[4]
+        playerTrainers.push(ally)
+        playerParty = []
+        $Trainer.party.each { |pkmn| playerParty.push(pkmn) }
+        playerPartyStarts.push(playerParty.length)
+        ally.party.each { |pkmn| playerParty.push(pkmn) }
+        setBattleRule("double") unless $PokemonTemp.battleRules["size"]
+        return playerParty
+    end
+    return playerParty
 end
 
 #===============================================================================
@@ -174,7 +182,6 @@ def pbTrainerBattle(trainerID, trainerName, endSpeech = nil,
         pbMapInterpreter.pbSetSelfSwitch($PokemonTemp.waitingTrainer[1], "A", true)
     end
     $PokemonTemp.waitingTrainer = nil
-    $game_switches[77] = decision == 6 # Mark if the battle was a time-out victory
     # Return true if the player won the battle, and false if any other result
     return [1, 6].include?(decision)
 end
@@ -215,4 +222,18 @@ end
 
 def pbTrainerBattleRandom(trainerID, trainerName, partyID = 0)
     pbTrainerBattle(trainerID, trainerName, nil, false, partyID, false, 1, true)
+end
+
+PERFECTED_SWITCH = 38
+def trackPerfectBattle(perfectingState)
+    $game_switches[PERFECTED_SWITCH] = perfectingState
+end
+
+def battlePerfected?
+	return $game_switches[PERFECTED_SWITCH]
+end
+
+TIME_OUT_SWITCH = 37
+def battleTimedOut?
+    return $game_switches[TIME_OUT_SWITCH]
 end

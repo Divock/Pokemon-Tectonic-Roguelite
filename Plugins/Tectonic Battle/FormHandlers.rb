@@ -114,7 +114,7 @@ def pbSpindaSpots(pkmn,bitmap)
      [0,0,1,1,1,1,1,1,1,1,0,0],
      [0,0,0,0,1,1,1,1,1,0,0,0]
   ]
-  id = pkmn.personalID
+  id = pkmn.aestheticsID
   h = (id>>28)&15
   g = (id>>24)&15
   f = (id>>20)&15
@@ -168,6 +168,13 @@ MultipleForms.register(:GROUDON,{
 MultipleForms.register(:KYOGRE,{
   "getPrimalForm" => proc { |pkmn|
     next 1 if pkmn.hasItem?(:BLUEORB)
+    next
+  }
+})
+
+MultipleForms.register(:RAYQUAZA,{
+  "getPrimalForm" => proc { |pkmn|
+    next 1 if pkmn.hasMove?(:DRAGONASCENT)
     next
   }
 })
@@ -514,6 +521,12 @@ MultipleForms.register(:GALLADE, {
 })
 
 MultipleForms.register(:MAROMATISSE, {
+  "getFormOnLeavingBattle" => proc { |pkmn, _battle, _usedInBattle, endBattle|
+      next 0 if pkmn.form == 1 && (pkmn.fainted? || endBattle)
+  },
+})
+
+MultipleForms.register(:EISCUE, {
   "getFormOnLeavingBattle" => proc { |pkmn, _battle, _usedInBattle, endBattle|
       next 0 if pkmn.form == 1 && (pkmn.fainted? || endBattle)
   },

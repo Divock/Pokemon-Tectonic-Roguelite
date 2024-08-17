@@ -68,12 +68,12 @@ def transferPlayerToEvent(event,direction=-1,map_id = -1,offset=[0,0])
 	return true
 end
 
-def teleportPlayer(map_id,x,y,instant=false)
+def teleportPlayer(map_id,x,y,instant=false,dir = nil)
 	$game_temp.player_transferring = true
 	$game_temp.player_new_map_id    = map_id || $game_map.map_id
 	$game_temp.player_new_x         = x
 	$game_temp.player_new_y         = y
-	$game_temp.player_new_direction = $game_player.direction
+	$game_temp.player_new_direction = dir || $game_player.direction
 	
 	Graphics.freeze
 	$game_temp.transition_processing = true
@@ -82,30 +82,43 @@ def teleportPlayer(map_id,x,y,instant=false)
 	$scene.transfer_player if instant
 end
 
-def healPartyWithDelay()
+def healPartyWithDelay(skipAidKit = false)
 	$Trainer.heal_party
 	pbMEPlay('Pkmn healing')
 	pbWait(68)
-	refillAidKit()
+	refillAidKit unless skipAidKit
+end
+
+def pumpedUp?
+	return !$PokemonGlobal.exp_multiplier.nil? && $PokemonGlobal.exp_multiplier > 1.0
+end
+
+def resetEXPBonus
+	return unless pumpedUp?
+	$PokemonGlobal.exp_multiplier = 1.0
+	pbMessage(_INTL("You no longer feel pumped up."))
 end
 
 def nonLegendarySpeciesCount(owned = false)
     count = 0
     GameData::Species.each do |speciesData|
         next unless speciesData.form == 0
-        next if isLegendary?(speciesData.id)
+        next if speciesData.isLegendary?
         next if owned && !$Trainer.pokedex.owned?(speciesData.species)
         count += 1
     end
     return count
 end
 
-def dexCompletionPercent(dexNumber = -1)
+def dexCompletionPercent
     ownedCount = nonLegendarySpeciesCount(true)
     totalCount = nonLegendarySpeciesCount
 	ratio = 100.0 * ownedCount.to_f / totalCount.to_f
-    echoln("Non-legendary dex Completion: #{ownedCount} / #{totalCount} is #{ratio} percent")
 	return ratio.floor
+end
+
+def readOutDexCompletionPercent
+    pbMessage(_INTL("You've currently completed {1} percent of the Dex.",dexCompletionPercent))
 end
 
 def lockPlayerInput

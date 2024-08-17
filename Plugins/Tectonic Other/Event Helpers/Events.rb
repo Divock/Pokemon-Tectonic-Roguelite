@@ -68,12 +68,23 @@ def toggleSwitches(eventsArray,switchName="A")
 	$MapFactory.getMap(mapid, false).need_refresh = true
 end
 
+def fadeEventsIn(eventIDs)
+	for i in 20..180 do
+		eventIDs.each do |eventID|
+			get_event(eventID).opacity = i
+		end
+		pbWait(1)
+	end
+end
+
 ###############################################################
 # Global switches
 ###############################################################
 def pbSetGlobalSwitch(switchID, value = true)
 	$game_system.map_interpreter.setGlobalSwitch(switchID, value)
 end
+
+alias setGlobalSwitch pbSetGlobalSwitch
 
 def getGlobalSwitch(switchID)
 	return $game_switches[switchID]
@@ -194,4 +205,12 @@ end
 
 def playerTurnsTowards
 	turnEventTowardsThis(-1)
+end
+
+def turnPlayerTowardsEvent(eventID)
+    pbTurnTowardEvent($game_player,get_event(eventID))
+end
+
+def playerOnTopOfEvent?(eventID)
+    return get_character(eventID).at_coordinate?($game_player.x,$game_player.y)
 end

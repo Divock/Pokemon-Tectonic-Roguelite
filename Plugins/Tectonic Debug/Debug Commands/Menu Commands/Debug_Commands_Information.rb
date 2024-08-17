@@ -13,40 +13,56 @@ DebugMenuCommands.register("setmetadata", {
     "name"        => _INTL("Add false metadata"),
     "description" => _INTL("For the important first 3 entries of map metadata, add false where there is nil."),
     "effect"      => proc {
-      GameData::MapMetadata.each do |map_metadata|
-        metadata_hash = {
-          :id                   => map_metadata.id,
-          :outdoor_map          => map_metadata.outdoor_map,
-          :announce_location    => map_metadata.announce_location,
-          :can_bicycle          => map_metadata.can_bicycle,
-          :always_bicycle       => map_metadata.always_bicycle,
-          :teleport_destination => map_metadata.teleport_destination,
-          :weather              => map_metadata.weather,
-          :town_map_position    => map_metadata.town_map_position,
-          :dive_map_id          => map_metadata.dive_map_id,
-          :dark_map             => map_metadata.dark_map,
-          :safari_map           => map_metadata.safari_map,
-          :snap_edges           => map_metadata.snap_edges,
-          :random_dungeon       => map_metadata.random_dungeon,
-          :battle_background    => map_metadata.battle_background,
-          :wild_battle_BGM      => map_metadata.wild_battle_BGM,
-          :trainer_battle_BGM   => map_metadata.trainer_battle_BGM,
-          :wild_victory_ME      => map_metadata.wild_victory_ME,
-          :trainer_victory_ME   => map_metadata.trainer_victory_ME,
-          :wild_capture_ME      => map_metadata.wild_capture_ME,
-          :town_map_size        => map_metadata.town_map_size,
-          :battle_environment   => map_metadata.battle_environment,
-          :teleport_blocked	    => map_metadata.teleport_blocked,
-          :saving_blocked	      => map_metadata.saving_blocked,
-          :no_team_editing	    => map_metadata.no_team_editing,
-        }
-        metadata_hash[:outdoor_map] = false if metadata_hash[:outdoor_map].nil?
-        metadata_hash[:announce_location] = false if metadata_hash[:announce_location].nil?
-        metadata_hash[:can_bicycle] = false if metadata_hash[:can_bicycle].nil?
-        # Add metadata's data to records
-        GameData::MapMetadata.register(metadata_hash)
-        GameData::MapMetadata.save
+
+      mapData = Compiler::MapData.new
+      for id in mapData.mapinfos.keys.sort
+          map = mapData.getMap(id)
+          next if !map || !mapData.mapinfos[id]
+          mapName = mapData.mapinfos[id].name
+          map_metadata = GameData::MapMetadata.try_get(id)
+          if map_metadata
+            metadata_hash = {
+              :id                   => map_metadata.id,
+              :outdoor_map          => map_metadata.outdoor_map,
+              :announce_location    => map_metadata.announce_location,
+              :can_bicycle          => map_metadata.can_bicycle,
+              :always_bicycle       => map_metadata.always_bicycle,
+              :teleport_destination => map_metadata.teleport_destination,
+              :weather              => map_metadata.weather,
+              :town_map_position    => map_metadata.town_map_position,
+              :dive_map_id          => map_metadata.dive_map_id,
+              :dark_map             => map_metadata.dark_map,
+              :safari_map           => map_metadata.safari_map,
+              :snap_edges           => map_metadata.snap_edges,
+              :random_dungeon       => map_metadata.random_dungeon,
+              :battle_background    => map_metadata.battle_background,
+              :wild_battle_BGM      => map_metadata.wild_battle_BGM,
+              :trainer_battle_BGM   => map_metadata.trainer_battle_BGM,
+              :wild_victory_ME      => map_metadata.wild_victory_ME,
+              :trainer_victory_ME   => map_metadata.trainer_victory_ME,
+              :wild_capture_ME      => map_metadata.wild_capture_ME,
+              :town_map_size        => map_metadata.town_map_size,
+              :battle_environment   => map_metadata.battle_environment,
+              :teleport_blocked	    => map_metadata.teleport_blocked,
+              :saving_blocked	      => map_metadata.saving_blocked,
+              :no_team_editing	    => map_metadata.no_team_editing,
+            }
+            metadata_hash[:outdoor_map] = false if metadata_hash[:outdoor_map].nil?
+            metadata_hash[:announce_location] = false if metadata_hash[:announce_location].nil?
+            metadata_hash[:can_bicycle] = false if metadata_hash[:can_bicycle].nil?
+          else
+            metadata_hash = {
+              :id => id,
+              :outdoor_map => false,
+              :announce_location => false,
+              :can_bicycle => false,
+            }
+          end
+          # Add metadata's data to records
+          GameData::MapMetadata.register(metadata_hash)
+          GameData::MapMetadata.save
       end
+
       Compiler.write_metadata
     }
   })
@@ -71,65 +87,65 @@ DebugMenuCommands.register("setmetadata", {
     }
   })
   
-  DebugMenuCommands.register("setencounters", {
-    "parent"      => "editorsmenu",
-    "name"        => _INTL("Edit Wild Encounters"),
-    "description" => _INTL("Edit the wild Pokémon that can be found on maps, and how they are encountered."),
-    "always_show" => true,
-    "effect"      => proc {
-      pbFadeOutIn { pbEncountersEditor }
-    }
-  })
+  # DebugMenuCommands.register("setencounters", {
+  #   "parent"      => "editorsmenu",
+  #   "name"        => _INTL("Edit Wild Encounters"),
+  #   "description" => _INTL("Edit the wild Pokémon that can be found on maps, and how they are encountered."),
+  #   "always_show" => true,
+  #   "effect"      => proc {
+  #     pbFadeOutIn { pbEncountersEditor }
+  #   }
+  # })
   
-  DebugMenuCommands.register("trainertypes", {
-    "parent"      => "editorsmenu",
-    "name"        => _INTL("Edit Trainer Types"),
-    "description" => _INTL("Edit the properties of trainer types."),
-    "always_show" => true,
-    "effect"      => proc {
-      pbFadeOutIn { pbTrainerTypeEditor }
-    }
-  })
+  # DebugMenuCommands.register("trainertypes", {
+  #   "parent"      => "editorsmenu",
+  #   "name"        => _INTL("Edit Trainer Types"),
+  #   "description" => _INTL("Edit the properties of trainer types."),
+  #   "always_show" => true,
+  #   "effect"      => proc {
+  #     pbFadeOutIn { pbTrainerTypeEditor }
+  #   }
+  # })
   
-  DebugMenuCommands.register("edittrainers", {
-    "parent"      => "editorsmenu",
-    "name"        => _INTL("Edit Individual Trainers"),
-    "description" => _INTL("Edit individual trainers, their Pokémon and items."),
-    "always_show" => true,
-    "effect"      => proc {
-      pbFadeOutIn { pbTrainerBattleEditor }
-    }
-  })
+  # DebugMenuCommands.register("edittrainers", {
+  #   "parent"      => "editorsmenu",
+  #   "name"        => _INTL("Edit Individual Trainers"),
+  #   "description" => _INTL("Edit individual trainers, their Pokémon and items."),
+  #   "always_show" => true,
+  #   "effect"      => proc {
+  #     pbFadeOutIn { pbTrainerBattleEditor }
+  #   }
+  # })
   
-  DebugMenuCommands.register("edititems", {
-    "parent"      => "editorsmenu",
-    "name"        => _INTL("Edit Items"),
-    "description" => _INTL("Edit item data."),
-    "always_show" => true,
-    "effect"      => proc {
-      pbFadeOutIn { pbItemEditor }
-    }
-  })
+  # DebugMenuCommands.register("edititems", {
+  #   "parent"      => "editorsmenu",
+  #   "name"        => _INTL("Edit Items"),
+  #   "description" => _INTL("Edit item data."),
+  #   "always_show" => true,
+  #   "effect"      => proc {
+  #     pbFadeOutIn { pbItemEditor }
+  #   }
+  # })
   
-  DebugMenuCommands.register("editpokemon", {
-    "parent"      => "editorsmenu",
-    "name"        => _INTL("Edit Pokémon"),
-    "description" => _INTL("Edit Pokémon species data."),
-    "always_show" => true,
-    "effect"      => proc {
-      pbFadeOutIn { pbPokemonEditor }
-    }
-  })
+  # DebugMenuCommands.register("editpokemon", {
+  #   "parent"      => "editorsmenu",
+  #   "name"        => _INTL("Edit Pokémon"),
+  #   "description" => _INTL("Edit Pokémon species data."),
+  #   "always_show" => true,
+  #   "effect"      => proc {
+  #     pbFadeOutIn { pbPokemonEditor }
+  #   }
+  # })
   
-  DebugMenuCommands.register("editdexes", {
-    "parent"      => "editorsmenu",
-    "name"        => _INTL("Edit Regional Dexes"),
-    "description" => _INTL("Create, rearrange and delete Regional Pokédex lists."),
-    "always_show" => true,
-    "effect"      => proc {
-      pbFadeOutIn { pbRegionalDexEditorMain }
-    }
-  })
+  # DebugMenuCommands.register("editdexes", {
+  #   "parent"      => "editorsmenu",
+  #   "name"        => _INTL("Edit Regional Dexes"),
+  #   "description" => _INTL("Create, rearrange and delete Regional Pokédex lists."),
+  #   "always_show" => true,
+  #   "effect"      => proc {
+  #     pbFadeOutIn { pbRegionalDexEditorMain }
+  #   }
+  # })
   
   DebugMenuCommands.register("positionsprites", {
     "parent"      => "editorsmenu",
@@ -156,41 +172,6 @@ DebugMenuCommands.register("setmetadata", {
         pbMessageDisplay(msgwindow, _INTL("Repositioning all sprites. Please wait."), false)
         Graphics.update
         pbAutoPositionAll
-        pbDisposeMessageWindow(msgwindow)
-      end
-    }
-  })
-  
-  DebugMenuCommands.register("autopositionbacksprites", {
-    "parent"      => "editorsmenu",
-    "name"        => _INTL("Auto-Position Back Sprites"),
-    "description" => _INTL("Automatically reposition all Pokémon back sprites. Don't use lightly."),
-    "always_show" => true,
-    "effect"      => proc {
-      if pbConfirmMessage(_INTL("Are you sure you want to reposition all back sprites?"))
-        msgwindow = pbCreateMessageWindow
-        pbMessageDisplay(msgwindow, _INTL("Repositioning all back sprites. Please wait."), false)
-        Graphics.update
-        
-        GameData::Species.each do |sp|
-          Graphics.update if sp.id_number % 50 == 0
-          bitmap1 = GameData::Species.sprite_bitmap(sp.species, sp.form, nil, nil, nil, true)
-          if bitmap1 && bitmap1.bitmap   # Player's y
-            sp.back_sprite_x = 0
-            sp.back_sprite_y = (bitmap1.height - (findBottom(bitmap1.bitmap) + 1)) / 2
-            data = GameData::Species.get(sp)
-            if data.abilities.include?(:LEVITATE) || data.abilities.include?(:DESERTSPIRIT)
-              sp.back_sprite_y -= 4
-            elsif data.egg_groups.include?(:Water2)
-              sp.back_sprite_y -= 2
-            end
-          end
-          bitmap1.dispose if bitmap1
-        end
-        GameData::Species.save
-        Compiler.write_pokemon
-        Compiler.write_pokemon_forms
-        
         pbDisposeMessageWindow(msgwindow)
       end
     }
@@ -295,8 +276,8 @@ DebugMenuCommands.register("setmetadata", {
     "name"        => _INTL("Create bossified graphics"),
     "description" => _INTL("Create bossified graphics for a given species"),
     "effect"      => proc { |sprites, viewport|
-    speciesGraphicName = pbEnterText(_INTL("Enter internal name."),0,20)
-    createBossGraphics(speciesGraphicName.to_sym)
+      speciesGraphicName = pbEnterText(_INTL("Enter internal name."),0,20)
+      createBossGraphics(speciesGraphicName.to_sym)
     }
   })
   
@@ -305,53 +286,11 @@ DebugMenuCommands.register("setmetadata", {
     "name"        => _INTL("Create bossified graphics for all"),
     "description" => _INTL("Create bossified graphics for every avatar in avatars.txt at 1.5 size"),
     "effect"      => proc { |sprites, viewport|
-    pbMessage("Generating bossified graphics for all forms of all species listed in avatars.txt")
+    pbMessage(_INTL("Generating bossified graphics for all forms of all species listed in avatars.txt"))
     createBossSpritesAllSpeciesForms
-    pbMessage("Finished")
+    pbMessage(_INTL("Finished"))
     }
   })
-
-  DebugMenuCommands.register("importtribalassignment", {
-    "parent"      => "editorsmenu",
-    "name"        => _INTL("Import Tribes"),
-    "description" => _INTL("Import tribes from comma seperated value file tribe_assignment.txt"),
-    "effect"      => proc { |sprites, viewport|
-      importTribes
-    }
-  })
-  
-  def importTribes
-    speciesCount = 0
-    Compiler.pbCompilerEachCommentedLine("tribe_assignment.txt") { |line, line_no|
-      line = Compiler.pbGetCsvRecord(line, line_no, [0, "*n"])
-  
-      next unless line.length > 1
-  
-      speciesName = line[0]
-      speciesData = GameData::Species.get(speciesName.to_sym)
-      tribeList = speciesData.tribes
-      
-      speciesCount += 1
-      echoln("Importing #{line.length - 1} tribes for species #{speciesName}")
-  
-      for index in 1..line.length do
-        tribeName = line[index]
-        next unless tribeName
-        tribe = tribeName.to_sym
-        raise _INTL("Cannot import tribe #{tribe} for species #{speciesName}, its not a defined tribe") unless GameData::Tribe.exists?(tribe)
-        tribeList.push(tribe)
-      end
-  
-      tribeList.uniq!
-      tribeList.compact!
-      speciesData.tribes = tribeList
-    }
-  
-    GameData::Species.save
-    Compiler.write_pokemon
-  
-    pbMessage(_INTL("Tribes imported for #{speciesCount} species!"))
-  end
   
   DebugMenuCommands.register("switchgraphicnames", {
     "parent"      => "othermenu",
@@ -380,3 +319,13 @@ DebugMenuCommands.register("setmetadata", {
       end
     }
   })
+
+DebugMenuCommands.register("tileset_rearranger", {
+  "parent"      => "editorsmenu",
+  "name"        => _INTL("Tileset Rearranger"),
+  "description" => _INTL("Rearrange tiles in tilesets."),
+  "always_show" => true,
+  "effect"      => proc { |sprites, viewport|
+    pbFadeOutIn { TilesetRearranger.new.main }
+  }
+})

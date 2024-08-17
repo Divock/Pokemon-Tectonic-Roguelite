@@ -153,15 +153,34 @@ GameData::BattleEffect.register_effect(:Side, {
     :real_name => "Diamond Field",
     :type => :Integer,
     :ticks_down => true,
+    :is_screen => true,
     :apply_proc => proc do |battle, _side, teamName, value|
         battle.pbDisplay(_INTL("{1} is protected by a diamond sheen!", teamName))
-        battle.pbDisplay(_INTL("They'll be protected from critical hits and random added effects for #{value - 1} more turns!", value))
+        battle.pbDisplay(_INTL("They can't be crit and take less damage for #{value - 1} more turns!", value))
     end,
     :disable_proc => proc do |battle, _side, teamName|
         battle.pbDisplay(_INTL("{1}'s Diamond Field was removed!", teamName))
     end,
     :expire_proc => proc do |battle, _side, teamName|
         battle.pbDisplay(_INTL("{1} is no longer protected by Diamond Field.", teamName))
+    end,
+})
+
+
+GameData::BattleEffect.register_effect(:Side, {
+    :id => :NaturalProtection,
+    :real_name => "Natural Protection",
+    :type => :Integer,
+    :ticks_down => true,
+    :apply_proc => proc do |battle, _side, teamName, value|
+        battle.pbDisplay(_INTL("{1} became determined to survive!", teamName))
+        battle.pbDisplay(_INTL("They'll take half damage from sources that aren't attacks for #{value - 1} more turns!", value))
+    end,
+    :disable_proc => proc do |battle, _side, teamName|
+        battle.pbDisplay(_INTL("{1}'s Natural Protection was removed!", teamName))
+    end,
+    :expire_proc => proc do |battle, _side, teamName|
+        battle.pbDisplay(_INTL("{1} is no longer inspired by Natural Protection.", teamName))
     end,
 })
 
@@ -219,6 +238,20 @@ GameData::BattleEffect.register_effect(:Side, {
     },
 })
 
+GameData::BattleEffect.register_effect(:Side, {
+    :id => :Quarantine,
+    :real_name => "Quarantine",
+    :resets_eor => true,
+    :protection_info => {
+        :hit_proc => proc do |user, target, move, battle|
+            user.applyEffect(:Disable,3) if user.canBeDisabled?(true,move)
+        end,
+        :does_negate_proc => proc do |_user, _target, move, _battle|
+            move.statusMove?
+        end,
+    },
+})
+
 ##########################################
 # Pledge combo effects
 ##########################################
@@ -233,11 +266,11 @@ GameData::BattleEffect.register_effect(:Side, {
     end,
     :disable_proc => proc do |battle, _side, teamName|
         teamName[0] = teamName[0].downcase
-        battle.pbDisplay(_INTL("The Rainbow on {1}'s side was sent away!", teamName))
+        battle.pbDisplay(_INTL("The rainbow on {1}'s side was sent away!", teamName))
     end,
     :expire_proc => proc do |battle, _side, teamName|
         teamName[0] = teamName[0].downcase
-        battle.pbDisplay(_INTL("The Rainbow on {1}'s side dissapeared.", teamName))
+        battle.pbDisplay(_INTL("The rainbow on {1}'s side dissapeared.", teamName))
     end,
 })
 
@@ -262,11 +295,11 @@ GameData::BattleEffect.register_effect(:Side, {
     end,
     :disable_proc => proc do |battle, _side, teamName|
         teamName[0] = teamName[0].downcase
-        battle.pbDisplay(_INTL("The Sea of Fire on {1}'s side was sent away!", teamName))
+        battle.pbDisplay(_INTL("The sea of fire on {1}'s side was sent away!", teamName))
     end,
     :expire_proc => proc do |battle, _side, teamName|
         teamName[0] = teamName[0].downcase
-        battle.pbDisplay(_INTL("The Sea of Fire on {1}'s side dissapeared.", teamName))
+        battle.pbDisplay(_INTL("The sea of fire on {1}'s side dissapeared.", teamName))
     end,
 })
 
@@ -281,11 +314,11 @@ GameData::BattleEffect.register_effect(:Side, {
     end,
     :disable_proc => proc do |battle, _side, teamName|
         teamName[0] = teamName[0].downcase
-        battle.pbDisplay(_INTL("The Swamp on {1}'s side was sent away!", teamName))
+        battle.pbDisplay(_INTL("The swamp on {1}'s side was sent away!", teamName))
     end,
     :expire_proc => proc do |battle, _side, teamName|
         teamName[0] = teamName[0].downcase
-        battle.pbDisplay(_INTL("The Swamp on {1}'s side dissapeared.", teamName))
+        battle.pbDisplay(_INTL("The swamp on {1}'s side dissapeared.", teamName))
     end,
 })
 
@@ -307,10 +340,18 @@ GameData::BattleEffect.register_effect(:Side, {
 teamName))
         end
     end,
-    :disable_proc => proc do |battle, _side, teamName|
+    :disable_proc => proc do |battle, side, teamName|
         teamName[0] = teamName[0].downcase
         battle.pbDisplay(_INTL("The Spikes around {1}'s feet were swept aside!", teamName))
+        side.applyEffect(:SpikesRemovedThisTurn)
     end,
+})
+
+GameData::BattleEffect.register_effect(:Side, {
+    :id => :SpikesRemovedThisTurn,
+    :real_name => "Spikes Removed",
+    :info_displayed => false,
+    :resets_eor => true,
 })
 
 GameData::BattleEffect.register_effect(:Side, {

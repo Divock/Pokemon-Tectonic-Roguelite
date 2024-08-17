@@ -57,6 +57,13 @@ module GameData
         keys = self::DATA.keys.sort { |a, b| self::DATA[a].id_number <=> self::DATA[b].id_number }
         keys.each { |key| yield self::DATA[key] if !key.is_a?(Integer) }
       end
+
+      def each_base
+        each do |data|
+          next if data.respond_to?("defined_in_extension") && data.defined_in_extension
+          yield data
+        end
+      end
   
       def load
         const_set(:DATA, load_data("Data/#{self::DATA_FILENAME}"))
@@ -116,8 +123,15 @@ module GameData
   
       # Yields all data in alphabetical order.
       def each
-        keys = self::DATA.keys.sort { |a, b| self::DATA[a].real_name <=> self::DATA[b].real_name }
+        keys = self::DATA.keys.sort { |a, b| self::DATA[a].id <=> self::DATA[b].id }
         keys.each { |key| yield self::DATA[key] }
+      end
+
+      def each_base
+        each do |data|
+          next if data.respond_to?("defined_in_extension") && data.defined_in_extension
+          yield data
+        end
       end
   
       def load
@@ -176,6 +190,13 @@ module GameData
         keys = self::DATA.keys.sort
         keys.each { |key| yield self::DATA[key] }
       end
+
+      def self.each_base
+        self.each do |data|
+          next if data.respond_to?("defined_in_extension") && data.defined_in_extension
+          yield data
+        end
+      end
   
       def load
         const_set(:DATA, load_data("Data/#{self::DATA_FILENAME}"))
@@ -192,6 +213,8 @@ module GameData
     # the instance represents.
     #=============================================================================
     module InstanceMethods
+      attr_accessor :defined_in_extension
+
       # @param other [Symbol, self.class, String, Integer]
       # @return [Boolean] whether other represents the same thing as this thing
       def ==(other)
@@ -216,6 +239,7 @@ module GameData
         Item.load
         Species.load
         SpeciesOld.load
+        SpeciesMetrics.load
         Ribbon.load
         Encounter.load
         TrainerType.load
@@ -228,6 +252,7 @@ module GameData
         Trait.load
         Like.load
         Dislike.load
+        Achievement.load
     end
 end
 

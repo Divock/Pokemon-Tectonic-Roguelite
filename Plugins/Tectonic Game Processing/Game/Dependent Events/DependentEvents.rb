@@ -169,6 +169,7 @@ class DependentEvents
         when 6 then newEvent.turn_right
         when 8 then newEvent.turn_up
         end
+        newEvent.dependent_event = true
         return newEvent
     end
 
@@ -613,7 +614,7 @@ class DependentEvents
                     "Graphics/Characters/", "")
                 events[k][6] = fname
                 @realEvents[k].character_name = fname
-                @realEvents[k].floats = floatingSpecies?(params[0], params[1])
+                @realEvents[k].floats = floatingPokemon?(params[5])
             end
             return
         end
@@ -664,7 +665,7 @@ class DependentEvents
         if ret
             change_sprite([first_pkmn.species, first_pkmn.form,
                            first_pkmn.gender, first_pkmn.shiny?,
-                           false,])
+                           false,first_pkmn])
         end
         if ret
             $PokemonTemp.dependentEvents.start_stepping

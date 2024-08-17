@@ -85,8 +85,10 @@ module ItemHandlers
     return CanUseInBattle.trigger(item,pkmn,battler,move,firstAction,battle,scene,showMessages)
   end
 
+  # Returns whether item was used
   def self.triggerUseInBattle(item,battler,battle)
-    UseInBattle.trigger(item,battler,battle)
+    return false if !UseInBattle[item]
+    return UseInBattle.trigger(item,battler,battle)
   end
 
   # Returns whether item was used
@@ -317,15 +319,11 @@ end
 #===============================================================================
 # Teach and forget a move
 #===============================================================================
-def pbLearnMove(pkmn,move,ignoreifknown=false,bymachine=false,&block)
+def pbLearnMove(pkmn,move,ignoreifknown=false,bymachine=false,addfirstmove=false,&block)
   return false if !pkmn
   move = GameData::Move.get(move).id
   if pkmn.egg? && !$DEBUG
     pbMessage(_INTL("Eggs can't be taught any moves."),&block)
-    return false
-  end
-  if pkmn.shadowPokemon?
-    pbMessage(_INTL("Shadow Pokémon can't be taught any moves."),&block)
     return false
   end
   pkmnname = pkmn.name
@@ -334,8 +332,9 @@ def pbLearnMove(pkmn,move,ignoreifknown=false,bymachine=false,&block)
     pbMessage(_INTL("{1} already knows {2}.",pkmnname,movename),&block) if !ignoreifknown
     return false
   end
-  if pkmn.numMoves<Pokemon::MAX_MOVES
+  if pkmn.numMoves < Pokemon::MAX_MOVES
     pkmn.learn_move(move)
+    pkmn.add_first_move(move) if addfirstmove
     pbMessage(_INTL("\\se[]{1} learned {2}!\\se[Pkmn move learnt]",pkmnname,movename),&block)
     return true
   end
@@ -354,6 +353,7 @@ def pbLearnMove(pkmn,move,ignoreifknown=false,bymachine=false,&block)
       pbMessage(_INTL("1, 2, and...\\wt[16] ...\\wt[16] ... Ta-da!\\se[Battle ball drop]\1"),&block)
       pbMessage(_INTL("{1} forgot how to use {2}.\\nAnd...\1",pkmnname,oldmovename),&block)
       pbMessage(_INTL("\\se[]{1} learned {2}!\\se[Pkmn move learnt]",pkmnname,movename),&block)
+      pkmn.add_first_move(move) if addfirstmove
       return true
   else
       pbMessage(_INTL("{1} did not learn {2}.",pkmnname,movename),&block)
@@ -419,7 +419,7 @@ def pbUseItem(bag,item,bagscene=nil)
         pkmn = $Trainer.party[chosen]
         if pbCheckUseOnPokemon(item,pkmn,screen)
           ret = ItemHandlers.triggerUseOnPokemon(item,pkmn,screen)
-          if ret && useType==1   # Usable on Pokémon, consumed
+          if ret && itm.consumed_after_use?   # Usable on Pokémon, consumed
             bag.pbDeleteItem(item)
             if !bag.pbHasItem?(item)
               pbMessage(_INTL("You used your last {1}.",itm.name)) { screen.pbUpdate }
@@ -464,12 +464,9 @@ def pbUseItemOnPokemon(item,pkmn,scene = nil)
     if !pkmn.compatible_with_move?(machine)
       pbMessage(_INTL("{1} can't learn {2}.",pkmn.name,movename)) { scene&.pbUpdate }
     else
-      pbMessage(_INTL("\\se[PC access]You booted up {1}.\1",itm.name)) { scene&.pbUpdate }
-      if pbConfirmMessage(_INTL("Do you want to teach {1} to {2}?",movename,pkmn.name)) { scene&.pbUpdate }
-        if pbLearnMove(pkmn,machine,false,true) { scene&.pbUpdate }
-          $PokemonBag.pbDeleteItem(item) if itm.is_TR?
-          return true
-        end
+      if pbLearnMove(pkmn,machine,false,true,true) { scene&.pbUpdate }
+        $PokemonBag.pbDeleteItem(item) if itm.is_TR?
+        return true
       end
     end
     return false
@@ -478,8 +475,7 @@ def pbUseItemOnPokemon(item,pkmn,scene = nil)
   ret = ItemHandlers.triggerUseOnPokemon(item,pkmn,scene)
   scene&.pbClearAnnotations
   scene&.pbHardRefresh
-  useType = itm.field_use
-  if ret && useType==1   # Usable on Pokémon, consumed
+  if ret && itm.consumed_after_use?   # Usable on Pokémon, consumed
     $PokemonBag.pbDeleteItem(item)
     if !$PokemonBag.pbHasItem?(item)
       pbMessage(_INTL("You used your last {1}.",itm.name)) { scene&.pbUpdate }
@@ -542,6 +538,17 @@ def pbChooseFossil(var = 0)
     scene = PokemonBag_Scene.new
     screen = PokemonBagScreen.new(scene,$PokemonBag)
     ret = screen.pbChooseItemScreen(Proc.new { |item| GameData::Item.get(item).is_fossil? })
+  }
+  $game_variables[var] = ret || :NONE if var > 0
+  return ret
+end
+
+def pbChooseEvolutionStone(var = 0)
+  ret = nil
+  pbFadeOutIn {
+    scene = PokemonBag_Scene.new
+    screen = PokemonBagScreen.new(scene,$PokemonBag)
+    ret = screen.pbChooseItemScreen(Proc.new { |item| GameData::Item.get(item).is_evolution_stone? })
   }
   $game_variables[var] = ret || :NONE if var > 0
   return ret

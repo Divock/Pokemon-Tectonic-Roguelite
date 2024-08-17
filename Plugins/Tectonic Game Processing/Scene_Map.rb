@@ -81,13 +81,14 @@ class Scene_Map
     end
 
     def transfer_player(cancelVehicles = true)
+        $game_temp.transfer_loaded_in = false
         $game_temp.player_transferring = false
         pbCancelVehicles($game_temp.player_new_map_id) if cancelVehicles
         autofade($game_temp.player_new_map_id)
         pbBridgeOff
         @spritesetGlobal.playersprite.clearShadows if @spritesetGlobal
         if $game_map.map_id != $game_temp.player_new_map_id
-            $game_switches[82] = false # Enable Auto Clouds, if it was disabled
+            $game_switches[35] = false # Enable Auto Clouds, if it was disabled
             $MapFactory.setup($game_temp.player_new_map_id) 
         end
         $game_player.moveto($game_temp.player_new_x, $game_temp.player_new_y)
@@ -240,6 +241,11 @@ class Scene_Map
         end
         return if $game_temp.message_window_showing
         unless pbMapInterpreterRunning?
+            unless $game_temp.transfer_loaded_in
+                $game_temp.transfer_loaded_in = true
+                Events.onMapLoadIn.trigger
+            end
+
             if Input.trigger?(Input::USE)
                 $PokemonTemp.hiddenMoveEventCalling = true
             elsif Input.trigger?(Input::BACK)

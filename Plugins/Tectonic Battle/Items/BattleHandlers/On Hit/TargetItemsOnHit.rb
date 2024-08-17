@@ -32,28 +32,32 @@ BattleHandlers::TargetItemOnHit.add(:ROWAPBERRY,
 
 BattleHandlers::TargetItemOnHit.add(:ROCKYHELMET,
   proc { |item, user, target, move, battle, aiCheck, aiNumHits|
+      next if battle.futureSight
       next unless move.physicalMove?
       next unless user.takesIndirectDamage?
       next -10 * aiNumHits if aiCheck
       battle.pbDisplay(_INTL("{1} was hurt by the {2}!", user.pbThis, getItemName(item)))
       user.applyFractionalDamage(1.0 / 6.0)
+      target.aiLearnsItem(item)
   }
 )
 
 BattleHandlers::TargetItemOnHit.add(:HIVISJACKET,
   proc { |item, user, target, move, battle, aiCheck, aiNumHits|
+      next if battle.futureSight
       next if move.physicalMove?
       next unless user.takesIndirectDamage?
       next -10 * aiNumHits if aiCheck
       battle.pbDisplay(_INTL("{1} was hurt by the {2}!", user.pbThis, getItemName(item)))
       user.applyFractionalDamage(1.0 / 6.0)
+      target.aiLearnsItem(item)
   }
 )
 
 BattleHandlers::TargetItemOnHit.add(:ENIGMABERRY,
   proc { |item, user, target, move, battle, aiCheck, aiNumHits|
       next if aiCheck
-      next if target.damageState.substitute || target.damageState.disguise || target.damageState.iceface
+      next if target.damageState.substitute || target.damageState.disguise
       next unless Effectiveness.super_effective?(target.damageState.typeMod)
       if BattleHandlers.triggerTargetItemOnHitPositiveBerry(item, target, battle, false)
           target.pbHeldItemTriggered(item)
@@ -93,8 +97,8 @@ BattleHandlers::TargetItemOnHit.add(:WEAKNESSPOLICY,
   proc { |item, user, target, move, battle, aiCheck, aiNumHits|
       statUp = [:ATTACK, 4, :SPECIAL_ATTACK, 4]
       next if aiCheck # aiCheck Disabled until AI item rework, also needs rework for type calculation
-      #next getMultiStatUpEffectScore(statUp, user, target, evaluateThreat: false) if aiCheck 
-      next if target.damageState.disguise || target.damageState.iceface
+      #next getMultiStatUpEffectScore(statUp, user, target, evaluateThreat: false) if aiCheck
+      next if target.damageState.disguise
       next unless Effectiveness.super_effective?(target.damageState.typeMod)
       next if !target.pbCanRaiseStatStep?(:ATTACK, target) &&
               !target.pbCanRaiseStatStep?(:SPECIAL_ATTACK, target)
@@ -106,6 +110,7 @@ BattleHandlers::TargetItemOnHit.add(:WEAKNESSPOLICY,
 
 BattleHandlers::TargetItemOnHit.add(:STICKYBARB,
   proc { |item, user, target, move, battle, aiCheck, aiNumHits|
+      next if battle.futureSight
       next unless user.canAddItem?(item)
       next -20 if aiCheck 
       user.giveItem(item)

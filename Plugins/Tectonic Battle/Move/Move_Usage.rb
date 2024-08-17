@@ -33,6 +33,7 @@ class PokeBattle_Move
 
     def calculateCategory(user, targets)
         return selectBestCategory(user, targets[0]) if punchingMove? && user.hasActiveAbility?(:MYSTICFIST)
+        return selectBestCategory(user) if adaptiveMove?
         return -1
     end
 
@@ -44,8 +45,10 @@ class PokeBattle_Move
     def pbDisplayUseMessage(user, _targets = [])
         if empoweredMove?
             unless @battle.autoTesting
-                @battle.pbDisplayWithFormatting(_INTL("\\ss{1} used <c2=06644bd2>{2}</c2>!", user.pbThis,
-@name))
+                @battle.pbDisplayWithFormatting(_INTL("\\ss{1} used <c2=06644bd2>{2}</c2>!", user.pbThis, @name))
+                if user.pbOwnedByPlayer?
+                    unlockAchievement(:USE_PRIMEVAL_MOVE)
+                end
             end
         else
             @battle.pbDisplayBrief(_INTL("{1} used {2}!", user.pbThis, @name))
@@ -289,17 +292,18 @@ target.pbThis(true)))
             target.damageState.disguise = true
             return
         end
-        # Ice Face will take the damage
-        if !@battle.moldBreaker && target.species == :EISCUE && target.form == 0 && target.hasActiveAbility?(:ICEFACE) && physicalMove?
-            target.damageState.iceface = true
-            return
-        end
     end
 
     def pbReduceDamage(user, target)
         damage = target.damageState.calcDamage
 
         target.damageState.displayedDamage = damage
+
+        # Last Gasp prevents all damage
+        if target.effectActive?(:LastGasp)
+            target.damageState.displayedDamage = 0
+            return
+        end
 
         # Substitute takes the damage
         if target.damageState.substitute
@@ -311,11 +315,6 @@ target.pbThis(true)))
         end
         # Disguise takes the damage
         if target.damageState.disguise
-            target.damageState.displayedDamage = 0
-            return
-        end
-        # Ice Face takes the damage
-        if target.damageState.iceface
             target.damageState.displayedDamage = 0
             return
         end
@@ -362,8 +361,8 @@ target.pbThis(true)))
                 target.damageState.survivalist = true
                 damage -= 1
                 damageAdjusted = true
-            elsif target.hasActiveItem?(FULL_ENDURE_ITEMS) && target.fullHealth?
-                target.damageState.focusSash = target.hasActiveItem?(FULL_ENDURE_ITEMS)
+            elsif target.hasActiveItem?(GameData::Item.getByFlag("Endure")) && target.fullHealth?
+                target.damageState.focusSash = target.hasActiveItem?(GameData::Item.getByFlag("Endure"))
                 damage -= 1
                 damageAdjusted = true
             elsif target.hasActiveItem?(:CLARITYSASH)
@@ -376,6 +375,10 @@ target.pbThis(true)))
                 damageAdjusted = true
             elsif user.hasActiveAbility?(:ARCHVILLAIN)
                 target.damageState.archVillain = user
+                damage -= 1
+                damageAdjusted = true
+            elsif target.hasActiveAbility?(:ICEBLOCK) && target.form == 0 && !@battle.moldBreaker
+                target.damageState.iceBlock = true
                 damage -= 1
                 damageAdjusted = true
             end
@@ -439,7 +442,7 @@ target.pbThis(true)))
     #=============================================================================
     def pbEffectivenessMessage(_user, target, numTargets = 1)
         return if target.damageState.disguise
-        return if target.damageState.iceface
+        return if target.effectActive?(:LastGasp)
         return if defined?($PokemonSystem.effectiveness_messages) && $PokemonSystem.effectiveness_messages == 1
         if Effectiveness.hyper_effective?(target.damageState.typeMod)
             if numTargets > 1
@@ -479,7 +482,6 @@ target.pbThis(true)))
 
     def pbHitEffectivenessMessages(user, target, numTargets = 1)
         return if target.damageState.disguise
-        return if target.damageState.iceface
         if target.damageState.substitute
             @battle.pbDisplay(_INTL("The substitute took damage for {1}!", target.pbThis(true)))
         end
@@ -505,8 +507,9 @@ target.pbThis(true)))
             @battle.pbDisplay(_INTL("Its disguise served it as a decoy!"))
             @battle.pbHideAbilitySplash(target)
             target.pbChangeForm(1, _INTL("{1}'s disguise was busted!", target.pbThis))
-        elsif target.damageState.iceface
-            @battle.pbShowAbilitySplash(target, :ICEFACE)
+        elsif target.damageState.iceBlock
+            @battle.pbShowAbilitySplash(target, :ICEBLOCK)
+            @battle.pbDisplay(_INTL("{1} endured the hit!", target.pbThis))
             target.pbChangeForm(1, _INTL("{1} transformed!", target.pbThis))
             @battle.pbHideAbilitySplash(target)
         elsif target.damageState.endured

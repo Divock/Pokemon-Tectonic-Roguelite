@@ -778,23 +778,25 @@ def pbEncountersEditor
           :always_bicycle       => data[3],
           :teleport_destination => data[4],
           :weather              => data[5],
-          :town_map_position    => data[6],
-          :dive_map_id          => data[7],
-          :dark_map             => data[8],
-          :safari_map           => data[9],
-          :snap_edges           => data[10],
-          :random_dungeon       => data[11],
-          :battle_background    => data[12],
-          :wild_battle_BGM      => data[13],
-          :trainer_battle_BGM   => data[14],
-          :wild_victory_ME      => data[15],
-          :trainer_victory_ME   => data[16],
-          :wild_capture_ME      => data[17],
-          :town_map_size        => data[18],
-          :battle_environment   => data[19],
-          :teleport_blocked     => data[20],
-          :saving_blocked       => data[21],
-          :no_team_editing      => data[22],
+          :temperature          => data[6],
+          :humidity             => data[7],
+          :town_map_position    => data[8],
+          :dive_map_id          => data[9],
+          :dark_map             => data[10],
+          :safari_map           => data[11],
+          :snap_edges           => data[12],
+          :random_dungeon       => data[13],
+          :battle_background    => data[14],
+          :wild_battle_BGM      => data[15],
+          :trainer_battle_BGM   => data[16],
+          :wild_victory_ME      => data[17],
+          :trainer_victory_ME   => data[18],
+          :wild_capture_ME      => data[19],
+          :town_map_size        => data[20],
+          :battle_environment   => data[21],
+          :teleport_blocked     => data[22],
+          :saving_blocked       => data[23],
+          :no_team_editing      => data[24],
         }
         # Add metadata's data to records
         GameData::MapMetadata.register(metadata_hash)
@@ -1062,13 +1064,6 @@ def pbEncountersEditor
               spec.shape,
               spec.habitat,
               spec.generation,
-              spec.back_sprite_x,
-              spec.back_sprite_y,
-              spec.front_sprite_x,
-              spec.front_sprite_y,
-              spec.front_sprite_altitude,
-              spec.shadow_x,
-              spec.shadow_size
             ]
             # Edit the properties
             if pbPropertyList(spec.id.to_s, data, species_properties, true)
@@ -1114,13 +1109,6 @@ def pbEncountersEditor
                 :shape                 => data[34],
                 :habitat               => data[35],
                 :generation            => data[36],
-                :back_sprite_x         => data[37],
-                :back_sprite_y         => data[38],
-                :front_sprite_x        => data[39],
-                :front_sprite_y        => data[40],
-                :front_sprite_altitude => data[41],
-                :shadow_x              => data[42],
-                :shadow_size           => data[43]
               }
               # Add species' data to records
               GameData::Species.register(species_hash)

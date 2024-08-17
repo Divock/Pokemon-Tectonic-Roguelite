@@ -31,7 +31,7 @@ BattleHandlers::MoveImmunityTargetAbility.add(:COLDRECEPTION,
 
 BattleHandlers::MoveImmunityTargetAbility.add(:CHALLENGER,
   proc { |ability, user, target, move, type, battle, showMessages, aiCheck|
-      next pbBattleMoveImmunityStatAbility(ability, user, target, move, type, :FIGHTING, :SPEED, 1, battle, showMessages, aiCheck)
+      next pbBattleMoveImmunityStatAbility(ability, user, target, move, type, :FIGHTING, ATTACKING_STATS_1, nil, battle, showMessages, aiCheck)
   }
 )
 
@@ -73,7 +73,7 @@ BattleHandlers::MoveImmunityTargetAbility.add(:VENOMDETTA,
 
 BattleHandlers::MoveImmunityTargetAbility.add(:FOOLHARDY,
   proc { |ability, user, target, move, type, battle, showMessages, aiCheck|
-      next pbBattleMoveImmunityStatAbility(ability, user, target, move, type, :PSYCHIC, :SPEED, 1, battle, showMessages, aiCheck)
+      next pbBattleMoveImmunityStatAbility(ability, user, target, move, type, :PSYCHIC, ATTACKING_STATS_1, nil, battle, showMessages, aiCheck)
   }
 )
 
@@ -87,7 +87,7 @@ BattleHandlers::MoveImmunityTargetAbility.add(:FIREFIGHTER,
 
 BattleHandlers::MoveImmunityTargetAbility.add(:HEARTLESS,
   proc { |ability, user, target, move, type, battle, showMessages, aiCheck|
-      next pbBattleMoveImmunityHealAbility(ability, user, target, move, type, :FAIRY, battle, showMessages, aiCheck)
+      next pbBattleMoveImmunityHealAbility(ability, user, target, move, type, :FAIRY, battle, showMessages, aiCheck, canOverheal: true)
   }
 )
 
@@ -253,12 +253,14 @@ BattleHandlers::MoveImmunityTargetAbility.add(:FULLBLUBBER,
 BattleHandlers::MoveImmunityTargetAbility.add(:MUPROTOCOL,
   proc { |ability, user, target, _move, type, battle, showMessages, aiCheck|
       next false if user.index == target.index
-      next false unless user.hasActiveItem?(:MEMORYSET)
+      next false unless user.shouldItemApply?(:MEMORYSET, aiCheck)
       next false unless type == user.itemTypeChosen
       if showMessages
           battle.pbShowAbilitySplash(target, ability)
           battle.pbDisplay(_INTL("It doesn't affect {1}...", target.pbThis(true)))
           battle.pbHideAbilitySplash(target)
+          
+          target.aiLearnsItem(:MEMORYSET)
       end
       next true
   }

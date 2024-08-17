@@ -15,6 +15,6 @@ ItemHandlers::UseOnPokemon.add(:ABILITYCAPSULE,proc { |item,pkmn,scene|
       next true
     end
     next false
-  })
+})
   
-  ItemHandlers::UseOnPokemon.copy(:ABILITYCAPSULE,:VIRALHELIX)
+ItemHandlers::UseOnPokemon.copy(:ABILITYCAPSULE,:VIRALHELIX)

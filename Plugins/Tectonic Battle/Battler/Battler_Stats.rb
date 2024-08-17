@@ -159,7 +159,7 @@ class PokeBattle_Battler
     AI_CHEATS_FOR_STAT_ABILITIES = true
 
     def pbAttack(aiCheck = false, step = nil)
-        return 1 if fainted?
+        return 1 if fainted? && !dummy?
         attack = statAfterStep(:ATTACK, step)
         attackMult = 1.0
 
@@ -186,7 +186,7 @@ class PokeBattle_Battler
     end
 
     def pbSpAtk(aiCheck = false, step = nil)
-        return 1 if fainted?
+        return 1 if fainted? && !dummy?
         special_attack = statAfterStep(:SPECIAL_ATTACK, step)
         spAtkMult = 1.0
 
@@ -210,7 +210,7 @@ class PokeBattle_Battler
     end
 
     def pbDefense(aiCheck = false, step = nil)
-        return 1 if fainted?
+        return 1 if fainted? && !dummy?
         defense = statAfterStep(:DEFENSE, step)
         defenseMult = 1.0
 
@@ -244,7 +244,7 @@ class PokeBattle_Battler
     end
 
     def pbSpDef(aiCheck = false, step = nil)
-        return 1 if fainted?
+        return 1 if fainted? && !dummy?
         special_defense = statAfterStep(:SPECIAL_DEFENSE, step)
         spDefMult = 1.0
 
@@ -277,7 +277,7 @@ class PokeBattle_Battler
     end
 
     def pbSpeed(aiCheck = false, step = nil, afterSwitching: false, move: nil)
-        return 1 if fainted?
+        return 1 if fainted? && !dummy?
         speed = statAfterStep(:SPEED, step)
         speedMult = 1.0
 
@@ -304,6 +304,7 @@ class PokeBattle_Battler
         if numbRelevant
             speedMult /= 2
             speedMult /= 2 if pbOwnedByPlayer? && @battle.curseActive?(:CURSE_STATUS_DOUBLED)
+            speedMult /= 2 if shouldAbilityApply?(:CLEANFREAK, aiCheck)
         end
 
         speedMult *= applySpeedTriggers(move,true) if aiCheck
@@ -315,7 +316,7 @@ class PokeBattle_Battler
     def applySpeedTriggers(move = nil,aiCheck = false)
         aiSpeedMult = 1.0
 
-        if hasActiveItem?(:AGILITYHERB)
+        if shouldItemApply?(:AGILITYHERB,aiCheck)
             if aiCheck
                 aiSpeedMult *= 2.0
             else
@@ -325,36 +326,8 @@ class PokeBattle_Battler
             end
         end
 
-        if hasActiveAbility?(:MAESTRO) && move&.soundMove?
-            if aiCheck
-                aiSpeedMult *= 2.0
-            else
-                applyEffect(:Maestro)
-            end
-        end
-
-        if hasActiveAbility?(:GALEWINGS) && move&.type == :FLYING
-            if aiCheck
-                aiSpeedMult *= 2.0
-            else
-                applyEffect(:GaleWings)
-            end
-        end
-
-        if hasActiveAbility?(:TRENCHCARVER) && move&.recoilMove?
-            if aiCheck
-                aiSpeedMult *= 2.0
-            else
-                applyEffect(:TrenchCarver)
-            end
-        end
-
-        if hasActiveAbility?(:SWIFTSTOMPS) && move&.kickingMove?
-            if aiCheck
-                aiSpeedMult *= 2.0
-            else
-                applyEffect(:SwiftStomps)
-            end
+        eachAbilityShouldApply(aiCheck) do |ability|
+            aiSpeedMult = BattleHandlers.triggerMoveSpeedModifierAbility(ability, self, move, @battle, aiSpeedMult, aiCheck)
         end
 
         return aiSpeedMult

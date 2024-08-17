@@ -16,6 +16,7 @@ class PokemonBox
         @pokemon[i] = nil
       end
       @locked = 0
+      @isDonationBox = 0
     end
   
     def length
@@ -52,6 +53,10 @@ class PokemonBox
     def each
       @pokemon.each { |item| yield item }
     end
+
+    def sample
+      return @pokemon.clone.compact.sample
+    end
   
     def clear
       @pokemon = []
@@ -66,6 +71,18 @@ class PokemonBox
     
     def unlock
       @locked = 0
+    end
+
+    def isDonationBox?
+      return @isDonationBox == 1
+    end
+
+    def setDonationBox
+      @isDonationBox = 1
+    end
+
+    def unSetDonationBox
+      @isDonationBox = 0
     end
     
     def isLocked?
@@ -87,11 +104,21 @@ class PokemonBox
         @boxes[i] = PokemonBox.new(_INTL("Box {1}",i+1),maxPokemon)
         @boxes[i].background = i % BASICWALLPAPERQTY
       end
+      addDonationBoxes()
       @currentBox = 0
       @boxmode = -1
       @unlockedWallpapers = []
       for i in 0...allWallpapers.length
         @unlockedWallpapers[i] = false
+      end
+    end
+
+    def addDonationBoxes(maxBoxes = Settings::NUM_STORAGE_BOXES, maxDonationBoxes = Settings::NUM_DONATION_BOXES, maxPokemon = PokemonBox::BOX_SIZE)
+      for i in 0...maxDonationBoxes
+        @boxes[i + maxBoxes] = PokemonBox.new(_INTL("Donation Box {1}",i+1),maxPokemon)
+        @boxes[i + maxBoxes].background = "donation"
+        @boxes[i + maxBoxes].setDonationBox
+        echoln("Added donation box #{i+1}")
       end
     end
   
@@ -111,10 +138,11 @@ class PokemonBox
     end
   
     def isAvailableWallpaper?(i)
-      @unlockedWallpapers = [] if !@unlockedWallpapers
-      return true if i<BASICWALLPAPERQTY
-      return true if @unlockedWallpapers[i]
-      return false
+        return true unless i.is_a?(Integer)
+        @unlockedWallpapers = [] if !@unlockedWallpapers
+        return true if i<BASICWALLPAPERQTY
+        return true if @unlockedWallpapers[i]
+        return false
     end
   
     def availableWallpapers
@@ -150,7 +178,7 @@ class PokemonBox
     end
   
     def full?
-      for i in 0...self.maxBoxes
+      for i in 0...self.maxBoxes-Settings::NUM_DONATION_BOXES
         return false unless @boxes[i].full?
       end
       return true
@@ -205,7 +233,6 @@ class PokemonBox
         pkmn = self[boxSrc,indexSrc]
         raise "Trying to copy nil to storage" if !pkmn
         pkmn.time_form_set = nil
-        pkmn.form          = 0 if pkmn.isSpecies?(:SHAYMIN)
         pkmn.heal
         self[boxDst,indexDst] = pkmn
       end
@@ -228,7 +255,6 @@ class PokemonBox
         if self[box,i]==nil
           if box>=0
             pkmn.time_form_set = nil if pkmn.time_form_set
-            pkmn.form          = 0 if pkmn.isSpecies?(:SHAYMIN)
             pkmn.heal
           end
           self[box,i] = pkmn
@@ -243,17 +269,32 @@ class PokemonBox
         pkmn.time_form_set = nil
         pkmn.heal
       end
-      for i in 0...maxPokemon(@currentBox)
-        if self[@currentBox,i]==nil
-          self[@currentBox,i] = pkmn
-          return @currentBox
+      if !@boxes[@currentBox].isDonationBox?
+        for i in 0...maxPokemon(@currentBox)
+          if self[@currentBox,i]==nil
+            self[@currentBox,i] = pkmn
+            return @currentBox
+          end
         end
       end
-      for j in 0...self.maxBoxes
-        for i in 0...maxPokemon(j)
-          if self[j,i]==nil
-            self[j,i] = pkmn
-            @currentBox = j
+      # Check for backup boxes beyond the current box
+      for potentialBox in (@currentBox + 1)...self.maxBoxes
+        next if self[potentialBox].isDonationBox?
+        for i in 0...maxPokemon(potentialBox)
+          if self[potentialBox,i]==nil
+            self[potentialBox,i] = pkmn
+            @currentBox = potentialBox
+            return @currentBox
+          end
+        end
+      end
+      # Check for backup before the current box
+      for potentialBox in 0...@currentBox
+        next if self[potentialBox].isDonationBox?
+        for i in 0...maxPokemon(potentialBox)
+          if self[potentialBox,i]==nil
+            self[potentialBox,i] = pkmn
+            @currentBox = potentialBox
             return @currentBox
           end
         end
@@ -404,6 +445,15 @@ class PokemonBox
   # Yields every Pokémon/egg in storage in turn.
   def pbEachPokemon
     for i in -1...$PokemonStorage.maxBoxes
+      for j in 0...$PokemonStorage.maxPokemon(i)
+        pkmn = $PokemonStorage[i][j]
+        yield(pkmn,i) if pkmn
+      end
+    end
+  end
+
+  def pbEachNonDonationPokemon
+    for i in -1...Settings::NUM_STORAGE_BOXES
       for j in 0...$PokemonStorage.maxPokemon(i)
         pkmn = $PokemonStorage[i][j]
         yield(pkmn,i) if pkmn

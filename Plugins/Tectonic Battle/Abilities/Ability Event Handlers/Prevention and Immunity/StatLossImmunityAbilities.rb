@@ -9,11 +9,11 @@ BattleHandlers::StatLossImmunityAbility.add(:CLEARBODY,
   }
 )
 
-BattleHandlers::StatLossImmunityAbility.copy(:CLEARBODY, :WHITESMOKE, :STUBBORN, :FULLMETALBODY, :STAINLESSSTEEL)
+BattleHandlers::StatLossImmunityAbility.copy(:CLEARBODY, :WHITESMOKE, :FULLMETALBODY, :STAINLESSSTEEL, :OPTIMIZEDALLOY)
 
-BattleHandlers::StatLossImmunityAbility.add(:ANCIENTSCALES,
+BattleHandlers::StatLossImmunityAbility.add(:PLOTARMOR,
   proc { |ability, battler, _stat, battle, showMessages|
-      next false unless @battle.eclipsed?
+      next false unless battle.eclipsed?
       if showMessages
           battle.pbShowAbilitySplash(battler, ability)
           battle.pbDisplay(_INTL("{1}'s stats cannot be lowered!", battler.pbThis))

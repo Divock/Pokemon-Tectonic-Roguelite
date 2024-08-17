@@ -92,8 +92,8 @@ class StyleValueScene
         textpos.push([_INTL("Adjust {1}'s Style", @pokemon.name),Graphics.width / 2,0,2,Color.new(88,88,80),Color.new(168,184,184)])
 
         # Place the pokemon's Style Points (stored as EVs)
-        numberBase = Color.new(64, 64, 64)
-        numberShadow = Color.new(176, 176, 176)
+        numberBase = MessageConfig::DARK_TEXT_MAIN_COLOR
+        numberShadow = MessageConfig::DARK_TEXT_SHADOW_COLOR
         textpos.concat([
                            [_INTL("Style Points"), styleValueLabelX, styleValueY, 0, base, shadow],
                            [_INTL("HP"), styleValueLabelX, styleValueY + 40, 0, base, shadow],
@@ -551,16 +551,19 @@ def styleValuesTrainer(skipExplanation = false)
         return
     end
 
+    skipExplanation = true if $PokemonSystem.brief_team_building_npcs == 0
+
     if isTempSwitchOff?("A") && !skipExplanation
         pbMessage(_INTL("I'm the Style Points adjuster. I can adjust your Pokémon's Style Points any time."))
         pbMessage(_INTL("To add Style Points to a stat, you'll have to remove them from another."))
         setTempSwitchOn("A")
     end
-    if pbConfirmMessage(_INTL("Would you like to adjust the Style Points of any of your Pokémon?"))
+    if skipExplanation || pbConfirmMessage(_INTL("Would you like to adjust the Style Points of any of your Pokémon?"))
+        pbMessage(_INTL("Choose the party member to adjust.")) if skipExplanation
         while true
             choosePokemonToStyle
             if $game_variables[1] < 0
-                pbMessage(_INTL("If your Pokémon need to have their Style Points adjusted, come to me."))
+                pbMessage(_INTL("If your Pokémon need to have their Style Points adjusted, come to me.")) unless skipExplanation
                 break
             else
                 pbStyleValueScreen(pbGetPokemon(1))

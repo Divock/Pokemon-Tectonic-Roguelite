@@ -6,6 +6,7 @@ class PokeBattle_Battle
     EffectivenessChangeCurseEffect	= HandlerHash2.new
     MoveUsedCurseEffect	= HandlerHash2.new
     BeginningOfTurnCurseEffect	= HandlerHash2.new
+    EndOfTurnCurseEffect	= HandlerHash2.new
 
     def triggerBattleStartApplyCurse(curse_policy, battle, curses_array)
         ret = BattleStartApplyCurse.trigger(curse_policy, battle, curses_array)
@@ -33,6 +34,10 @@ class PokeBattle_Battle
 
     def triggerBeginningOfTurnCurseEffect(curse_policy, battle)
         BeginningOfTurnCurseEffect.trigger(curse_policy, battle)
+    end
+
+    def triggerEndOfTurnCurseEffect(curse_policy, battle)
+        EndOfTurnCurseEffect.trigger(curse_policy, battle)
     end
 
     def triggerMoveUsedCurseEffect(curse_policy, user, target, move)
@@ -83,7 +88,7 @@ class PokeBattle_Battle
         echoln("Amulet actives!")
         pbDisplaySlower(_INTL("\\i[TAROTAMULET]The Tarot Amulet glows with power!"))
 
-        curseBG = scene.pbAddSprite("curseBG",0,0,"Graphics/Pictures/cursebg",@viewport)
+        curseBG = scene.pbAddSprite("curseBG",0,0,"Graphics/Pictures/Battle/cursebg",@viewport)
         curseBG.visible = true
         curseBG.z = 100_000
 

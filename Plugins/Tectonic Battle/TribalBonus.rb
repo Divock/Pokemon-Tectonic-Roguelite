@@ -40,7 +40,6 @@ class TribalBonus
         @tribesGivingBonus.each do |tribeID|
             description = getTribeName(tribeID)
             description += _INTL(" Tribe") if concat
-            description += _INTL(" [O]") if foe
             list.push(description)
         end
 
@@ -98,6 +97,19 @@ class TribalBonus
 
     def hasTribeBonus?(tribeID)
         return @tribesGivingBonus.include?(tribeID)
+    end
+
+    def hasAnyTribeOverlap?
+        updateTribeCount
+        @tribeCounts.each do |tribe, count|
+            return true if count >= 2
+        end
+        return false
+    end
+
+    def hasAnyTribalBonus?
+        updateTribeCount
+        return !@tribesGivingBonus.empty?
     end
 end
 

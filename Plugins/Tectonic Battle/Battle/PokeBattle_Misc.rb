@@ -106,7 +106,7 @@ class PokeBattle_Battle
 
                 if PRIMEVAL_MOVES_RESET_DEBUFFS
                     pbAnimation(:REFRESH,b,b)
-                    pbDisplayBossNarration(_INTL("{1} wiped the slate clean.", b.pbThis)) if showMessages
+                    pbDisplaySlower(_INTL("{1} wiped the slate clean.", b.pbThis)) if showMessages
                     b.pbCureStatus
                     b.pbCureStatus # Duplicated intentionally
                     b.pbResetLoweredStatSteps(true)
@@ -116,7 +116,7 @@ class PokeBattle_Battle
                         b.disableEffect(effect)
                     end
                 end
-                pbDisplayBossNarration(_INTL("A great energy rises up from inside {1}!", b.pbThis(true))) if showMessages
+                pbDisplaySlower(_INTL("A great energy rises up from inside {1}!", b.pbThis(true))) if showMessages
                 b.lastRoundMoved = 0
                 b.pbCancelMoves # Cancels multi-turn moves
                 b.pbUseMove([:UseMove, index, move, -1, 0])
@@ -148,12 +148,13 @@ class PokeBattle_Battle
     # moveIDOrIndex is either the index of the move on the user's move list (Integer)
     # or it's the ID of the move to be used (Symbol)
     def forceUseMove(forcedMoveUser, moveIDOrIndex, target = -1, specialUsage = true, usageMessage = nil, moveUsageEffect = nil, ability: nil, aiCheck: false)
+        if moveIDOrIndex.is_a?(Symbol)
+            fakeMove = PokeBattle_Move.from_pokemon_move(self, Pokemon::Move.new(moveIDOrIndex))
+        else
+            fakeMove = forcedMoveUser.moves[moveIDOrIndex]
+        end
+        
         if aiCheck
-            if moveIDOrIndex.is_a?(Symbol)
-                fakeMove = PokeBattle_Move.from_pokemon_move(self, Pokemon::Move.new(moveIDOrIndex))
-            else
-                fakeMove = forcedMoveUser.moves[moveIDOrIndex]
-            end
             moveScore = 0
             if target >= 0
                 moveScore = @battleAI.pbGetMoveScore(fakeMove, forcedMoveUser, @battlers[target], forcedMoveUser.ownersPolicies)
@@ -166,6 +167,7 @@ class PokeBattle_Battle
                 end
             end
         end
+
         oldLastRoundMoved = forcedMoveUser.lastRoundMoved
         if specialUsage
             @specialUsage = true
@@ -176,16 +178,32 @@ class PokeBattle_Battle
             oldOutrageTurns = forcedMoveUser.effects[:Outrage]
             forcedMoveUser.effects[:Outrage] += 1 if forcedMoveUser.effectActive?(:Outrage)
         end
+
+        # Show explanatory information
         pbShowAbilitySplash(forcedMoveUser, ability, true) if ability
         pbDisplay(usageMessage) unless usageMessage.nil?
         pbHideAbilitySplash(forcedMoveUser) if ability
+
         moveID = moveIDOrIndex.is_a?(Symbol) ? moveIDOrIndex : nil
         moveIndex = moveIDOrIndex.is_a?(Integer) ? moveIDOrIndex : -1
-        PBDebug.logonerr do
-            forcedMoveUser.effects[moveUsageEffect] = true unless moveUsageEffect.nil?
-            forcedMoveUser.pbUseMoveSimple(moveID, target, moveIndex, specialUsage)
-            forcedMoveUser.effects[moveUsageEffect] = false unless moveUsageEffect.nil?
+
+        cantForceMove = false
+        if forcedMoveUser.asleep?
+            forcedMoveUser.pbContinueStatus(:SLEEP)
+            unless fakeMove.usableWhenAsleep? # Snore/Sleep Talk
+                forcedMoveUser.onMoveFailed(fakeMove,false)
+                cantForceMove = true
+            end
         end
+
+        unless cantForceMove
+            PBDebug.logonerr do
+                forcedMoveUser.effects[moveUsageEffect] = true unless moveUsageEffect.nil?
+                forcedMoveUser.pbUseMoveSimple(moveID, target, moveIndex, specialUsage)
+                forcedMoveUser.effects[moveUsageEffect] = false unless moveUsageEffect.nil?
+            end
+        end
+
         forcedMoveUser.lastRoundMoved = oldLastRoundMoved
         if specialUsage
             forcedMoveUser.effects[:Outrage] = oldOutrageTurns
@@ -243,6 +261,27 @@ class PokeBattle_Battle
             return false
         else
             return knownAbilitiesOfMon.include?(checkAbility)
+        end
+    end
+
+    def aiLearnsItem(battler, item)
+        return unless battler.pbOwnedByPlayer?
+        return if @knownItems[battler.pokemon.personalID].include?(item)
+        @knownItems[battler.pokemon.personalID].push(item)
+        echoln("[AI LEARNING] The AI is now aware of #{battler.pbThis(true)}'s item #{item}")
+    end
+
+    # If given an array, returns true if the AI knows of ANY of the listed abilities
+    def aiKnowsItem?(pokemon,checkItem)
+        knownItemsOfMon = @knownItems[pokemon.personalID]
+        return false if knownItemsOfMon.nil?
+        if checkItem.is_a?(Array)
+            checkItem.each do |specificItem|
+                return true if knownItemsOfMon.include?(specificItem)
+            end
+            return false
+        else
+            return knownItemsOfMon.include?(checkItem)
         end
     end
 
@@ -329,4 +368,14 @@ def getItemName(item)
     itemData = GameData::Item.try_get(item)
     return "ERROR" if itemData.nil?
     return itemData.name
+end
+
+def getMoveName(move)
+    moveData = GameData::Move.try_get(move)
+    return "ERROR" if moveData.nil?
+    return moveData.name
+end
+
+def getBattleMoveInstanceFromID(move_id)
+    return PokeBattle_Move.from_pokemon_move(nil, Pokemon::Move.new(move_id))
 end

@@ -2,17 +2,19 @@ def candyMachine(candyAmount,level)
     if candyAmount == 0
         pbMessage(_INTL("A candy machine. It's out of candy."))
     else
-        if candyAmount == 1
-            pbMessage(_INTL("A candy machine. It has one batch of candy."))
-        else
-            pbMessage(_INTL("A candy machine. It contains #{candyAmount} batches of candy."))
+        unless isTempSwitchOn?("A")
+            if candyAmount == 1
+                pbMessage(_INTL("A candy machine. It has one batch of candy."))
+            else
+                pbMessage(_INTL("A candy machine. It contains #{candyAmount} batches of candy."))
+            end
         end
-
         cost = candyBatchCost(level)
         if $Trainer.money < cost
             pbMessage(_INTL("A batch costs ${1}. You can't afford to pay that much!",cost.to_s_formatted))
         else
             if pbConfirmMessage(_INTL("Buy some candy for ${1}?",cost.to_s_formatted))
+                setTempSwitchOn("A")
                 $Trainer.money = $Trainer.money - cost
                 pbMessage(_INTL("You put in $#{cost}."))
 
@@ -39,33 +41,33 @@ end
 def candyBatchCost(level)
     case level
     when 0..15
-        return 300
+        return 250
     when 16..20
-        return 550
+        return 450
     when 21..25
-        return 1000
+        return 750
     when 26..30
-        return 1500
+        return 1150
     when 31..35
-        return 2000
+        return 1500
     when 36..40
-        return 3000
+        return 2150
     when 41..45
-        return 4000
+        return 2750
     when 46..50
-        return 5000
+        return 3500
     when 51..55
-        return 6000
+        return 4000
     when 56..60
-        return 7000
+        return 4750
     when 61..65
-        return 8000
+        return 5250
     when 65..70
-        return 10_000
+        return 6500
     when 71..100
-        return 16_000
+        return 10_000
     else
-        pbMessage("Unassigned level passed to candyBatchCost: #{level}") if $DEBUG
+        pbMessage(_INTL("Unassigned level passed to candyBatchCost: #{level}")) if $DEBUG
 	    return 250
     end
 end

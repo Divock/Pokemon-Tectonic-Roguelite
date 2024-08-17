@@ -34,12 +34,12 @@ def willHealStatus?(target)
 end
 
 def getNaturalCureScore(user, target, score)
-    return 0 unless user.battle.pbCanSwitch?(target.index)
+    return 0 unless target.battle.pbCanSwitch?(target.index)
     ncScore = score * 0.4
     ncScore -= getForceOutEffectScore(user, target) # Encouraging target to switch might be benefical
     return 0 if ncScore <= 0
     return ncScore
-end    
+end
 
 def getNumbEffectScore(user, target, ignoreCheck: false)
     return 0 if willHealStatus?(target)
@@ -48,7 +48,7 @@ def getNumbEffectScore(user, target, ignoreCheck: false)
         score += 60 if target.hasDamagingAttack?
         score += 60 if user && target.pbSpeed(true) > user.pbSpeed(true)
         score += STATUS_PUNISHMENT_BONUS if user && (user.hasStatusPunishMove? ||
-                                            user.pbHasMoveFunction?("07C", "579")) # Smelling Salts, Spectral Tongue
+                                            user.pbHasMoveFunction?("SmellingSalts", "NumbTargetOrCurseIfNumb")) # Smelling Salts, Spectral Tongue
         score += 60 if user&.hasActiveAbilityAI?(:TENDERIZE)
         score -= getNaturalCureScore(user, target, score) if target.hasActiveAbilityAI?(:NATURALCURE)
     else
@@ -73,7 +73,7 @@ def getPoisonEffectScore(user, target, ignoreCheck: false)
                 score *= 2 if user.ownersPolicies.include?(:PRIORITIZEDOTS) && user.opposes?(target)
             end
         end
-        score += STATUS_PUNISHMENT_BONUS if user && (user.hasStatusPunishMove? || user.pbHasMoveFunction?("07B")) # Venoshock
+        score += STATUS_PUNISHMENT_BONUS if user && (user.hasStatusPunishMove? || user.pbHasMoveFunction?("DoubleDamageAgainstPoisoned","TripleDamageAgainstPoisoned")) # Venoshock/Vipershock
         score -= getNaturalCureScore(user, target, score) if target.hasActiveAbilityAI?(:NATURALCURE)
     else
         return 0
@@ -101,7 +101,7 @@ def getBurnEffectScore(user, target, ignoreCheck: false)
             score += 30 unless target.hasSpecialAttack?
         end
         
-        score += STATUS_PUNISHMENT_BONUS if user && (user.hasStatusPunishMove? || user.pbHasMoveFunction?("50E")) # Flare Up
+        score += STATUS_PUNISHMENT_BONUS if user && (user.hasStatusPunishMove? || user.pbHasMoveFunction?("DoubleDamageAgainstBurned")) # Flare Up
         score -= getNaturalCureScore(user, target, score) if target.hasActiveAbilityAI?(:NATURALCURE)
     else
         return 0
@@ -129,7 +129,7 @@ def getFrostbiteEffectScore(user, target, ignoreCheck: false)
             score += 30 unless target.hasPhysicalAttack?
         end
 
-        score += STATUS_PUNISHMENT_BONUS if user && (user.hasStatusPunishMove? || user.pbHasMoveFunction?("50C")) # Ice Impact
+        score += STATUS_PUNISHMENT_BONUS if user && (user.hasStatusPunishMove? || user.pbHasMoveFunction?("DoubleDamageAgainstFrostbitten")) # Ice Impact
         score -= getNaturalCureScore(user, target, score) if target.hasActiveAbilityAI?(:NATURALCURE)
     else
         return 0
@@ -167,7 +167,7 @@ def getLeechEffectScore(user, target, ignoreCheck: false)
 			score += 50 if target.hasHealingMove?
             score *= 2 if user&.hasActiveAbilityAI?(:AGGRAVATE)
             score *= 1.5 if user&.hasActiveAbilityAI?(:ROOTED)
-            score *= 1.3 if user&.hasActiveItem?(:BIGROOT)
+            score *= 1.3 if user&.hasActiveItemAI?(:BIGROOT)
             score *= 2 if user&.ownersPolicies.include?(:PRIORITIZEDOTS) && user&.opposes?(target)
         end
 
@@ -195,7 +195,7 @@ end
 
 def getFlinchingEffectScore(baseScore, user, target, move)
     return 0 unless user.battle.battleAI.userMovesFirst?(move, user, target)
-    return 0 if target.hasActiveAbilityAI?(GameData::Ability::FLINCH_IMMUNITY_ABILITIES)
+    return 0 if target.hasActiveAbilityAI?(GameData::Ability.getByFlag("FlinchImmunity"))
     return 0 if target.substituted? && !move.ignoresSubstitute?(user)
     return 0 if target.effectActive?(:FlinchImmunity)
     return 0 if target.battle.pbCheckSameSideAbility(:EFFLORESCENT,target.index)
@@ -351,8 +351,8 @@ def getMultiStatUpEffectScore(statUpArray, user, target, fakeStepModifier: 0, ev
         end
 		
 		# Increase the score more if getting offense and defense from same stat
-		increase += 12 if statSymbol == :DEFENSE && target.pbHasMoveFunction?("177") # Body Press
-		increase += 12 if statSymbol == :SPECIAL_DEFENSE && target.pbHasMoveFunction?("540") # Aura Trick
+		increase += 12 if statSymbol == :DEFENSE && target.pbHasMoveFunction?("AttacksWithDefense") # Body Press
+		increase += 12 if statSymbol == :SPECIAL_DEFENSE && target.pbHasMoveFunction?("AttacksWithSpDef") # Aura Trick
 		increase = 30 if %i[DEFENSE SPECIAL_DEFENSE].include?(statSymbol) && increase > 30 # Restrain the ai if it has defense move and took a hit
 
         # Different stat steps have different values
@@ -416,12 +416,12 @@ def getMultiStatUpEffectScore(statUpArray, user, target, fakeStepModifier: 0, ev
         if target.pbHasAnyStatus? && !target.hasActiveAbilityAI?(:VICTORYMOLT)
             if target.burned?
                 if statSymbol == :ATTACK
-                    totalIncrease *= 0.66 unless target.pbHasMoveFunction?("07E") # Facade / Hard Feelings
+                    totalIncrease *= 0.66 unless target.pbHasMoveFunction?("DoubleDamageUserStatused") # Facade / Hard Feelings
                 end
                 damageStatus = 1
             elsif target.frostbitten?
                 if statSymbol == :SPECIAL_ATTACK
-                    totalIncrease *= 0.66 unless target.pbHasMoveFunction?("07E") # Facade / Hard Feelings
+                    totalIncrease *= 0.66 unless target.pbHasMoveFunction?("DoubleDamageUserStatused") # Facade / Hard Feelings
                 end
                 damageStatus = 1
             elsif target.numbed?
@@ -584,7 +584,7 @@ def getMultiStatDownEffectScore(statDownArray, user, target, fakeStepModifier: 0
 end
 
 def getWeatherSettingEffectScore(weatherType, user, battle, finalDuration = 4, checkExtensions = true)
-    if battle.primevalWeatherPresent? || battle.pbCheckGlobalAbility(%i[AIRLOCK CLOUDNINE)])
+    if battle.primevalWeatherPresent? || battle.pbCheckGlobalAbility(:AIRLOCK)
         echoln("\t\t[EFFECT SCORING] Score for setting weather #{weatherType} is 0 due to presence of weather-disabling ability")
         return 0
     end
@@ -607,29 +607,29 @@ def getWeatherSettingEffectScore(weatherType, user, battle, finalDuration = 4, c
     hasSynergyAbility = false
     hasSynergisticType = false
     case weatherType
-    when :Sun
+    when :Sunshine
         weatherMatchesPolicy = true if user.ownersPolicies.include?(:SUN_TEAM)
-        hasSynergyAbility = true if user.hasActiveAbilityAI?(GameData::Ability::SUN_ABILITIES)
+        hasSynergyAbility = true if user.hasActiveAbilityAI?(GameData::Ability.getByFlag("SunSynergy"))
         hasSynergisticType = true if user.pbHasAttackingType?(:FIRE)
-    when :Rain
+    when :Rainstorm
         weatherMatchesPolicy = true if user.ownersPolicies.include?(:RAIN_TEAM)
-        hasSynergyAbility = true if user.hasActiveAbilityAI?(GameData::Ability::RAIN_ABILITIES)
+        hasSynergyAbility = true if user.hasActiveAbilityAI?(GameData::Ability.getByFlag("RainSynergy"))
         hasSynergisticType = true if user.pbHasAttackingType?(:WATER)
     when :Sandstorm
         weatherMatchesPolicy = true if user.ownersPolicies.include?(:SANDSTORM_TEAM)
-        hasSynergyAbility = true if user.hasActiveAbilityAI?(GameData::Ability::SAND_ABILITIES)
+        hasSynergyAbility = true if user.hasActiveAbilityAI?(GameData::Ability.getByFlag("SandSynergy"))
         hasSynergisticType = true if user.pbHasTypeAI?(:ROCK)
     when :Hail
         weatherMatchesPolicy = true if user.ownersPolicies.include?(:HAIL_TEAM)
-        hasSynergyAbility = true if user.hasActiveAbilityAI?(GameData::Ability::HAIL_ABILITIES)
+        hasSynergyAbility = true if user.hasActiveAbilityAI?(GameData::Ability.getByFlag("HailSynergy"))
         hasSynergisticType = true if user.pbHasTypeAI?(:ICE)
     when :Moonglow
         weatherMatchesPolicy = true if user.ownersPolicies.include?(:MOONGLOW_TEAM)
-        hasSynergyAbility = true if user.hasActiveAbilityAI?(GameData::Ability::MOONGLOW_ABILITIES)
+        hasSynergyAbility = true if user.hasActiveAbilityAI?(GameData::Ability.getByFlag("MoonglowSynergy"))
         hasSynergisticType = true if user.pbHasAttackingType?(:FAIRY)
     when :Eclipse
         weatherMatchesPolicy = true if user.ownersPolicies.include?(:ECLIPSE_TEAM)
-        hasSynergyAbility = true if user.hasActiveAbilityAI?(GameData::Ability::ECLIPSE_ABILITIES)
+        hasSynergyAbility = true if user.hasActiveAbilityAI?(GameData::Ability.getByFlag("EclipseSynergy"))
         hasSynergisticType = true if user.pbHasAttackingType?(:PSYCHIC)
     end
     
@@ -638,7 +638,7 @@ def getWeatherSettingEffectScore(weatherType, user, battle, finalDuration = 4, c
         score *= 4
     elsif user.aboveHalfHealth?
         score *= 1.5 if hasSynergisticType
-        score *= 1.5 if user.hasActiveAbilityAI?(GameData::Ability::GENERAL_WEATHER_ABILITIES)
+        score *= 1.5 if user.hasActiveAbilityAI?(GameData::Ability.getByFlag("AllWeatherSynergy"))
     end
    
     return score
@@ -751,10 +751,10 @@ def predictedEOTDamage(battle,battler)
     damage += battler.getFractionalDamageAmount(EOR_SELF_HARM_ABILITY_DAMAGE_FRACTION, aggravate: aggravate) if battler.hasActiveAbilityAI?(:LIVEFAST)
 
     # Sticky Barb
-    damage += battler.getFractionalDamageAmount(STICKY_BARB_DAMAGE_FRACTION, aggravate: aggravate) if battler.hasActiveItem?(:STICKYBARB)
+    damage += battler.getFractionalDamageAmount(STICKY_BARB_DAMAGE_FRACTION, aggravate: aggravate) if battler.hasActiveItemAI?(:STICKYBARB)
 
     # Black Sludge
-    if battler.hasActiveItem?(:BLACKSLUDGE) && !battler.pbHasType?(:POISON)
+    if battler.hasActiveItemAI?(:BLACKSLUDGE) && !battler.pbHasType?(:POISON)
         damage += battler.getFractionalDamageAmount(LEFTOVERS_HEALING_FRACTION)
     end
 
@@ -816,13 +816,13 @@ def predictedEOTHealing(battle,battler)
     end
 
     # Leftovers
-    LEFTOVERS_ITEMS.each do |leftoversItem|
-        next unless battler.hasActiveItem?(leftoversItem)
+    GameData::Item.getByFlag("Leftovers").each do |leftoversItem|
+        next unless battler.hasActiveItemAI?(leftoversItem)
         healing += battler.getFractionalHealingAmount(LEFTOVERS_HEALING_FRACTION)
     end
 
     # Black Sludge
-    if battler.hasActiveItem?(:BLACKSLUDGE) && battler.pbHasType?(:POISON)
+    if battler.hasActiveItemAI?(:BLACKSLUDGE) && battler.pbHasType?(:POISON)
         healing += battler.getFractionalHealingAmount(LEFTOVERS_HEALING_FRACTION)
     end
 
@@ -888,7 +888,7 @@ def getReflectEffectScore(user, baseDuration = nil, move = nil)
             score += 60 if !move || user.battle.battleAI.userMovesFirst?(move, user, b)
         end
     end
-    duration = baseDuration ? user.getScreenDuration(baseDuration) : user.getScreenDuration
+    duration = baseDuration ? user.getScreenDuration(baseDuration,aiCheck: true) : user.getScreenDuration(aiCheck: true)
     duration -= user.pbOwnSide.countEffect(:Reflect) if user.pbOwnSide.effectActive?(:Reflect)
     score += 10 * duration
     score = (score * 1.3).ceil if user.fullHealth?
@@ -904,7 +904,7 @@ def getLightScreenEffectScore(user, baseDuration = nil, move = nil)
             score += 60 if !move || user.battle.battleAI.userMovesFirst?(move, user, b)
         end
     end
-    duration = baseDuration ? user.getScreenDuration(baseDuration) : user.getScreenDuration
+    duration = baseDuration ? user.getScreenDuration(baseDuration,aiCheck: true) : user.getScreenDuration(aiCheck: true)
     duration -= user.pbOwnSide.countEffect(:LightScreen) if user.pbOwnSide.effectActive?(:LightScreen)
     score += 10 * duration
     score = (score * 1.3).ceil if user.fullHealth?
@@ -918,6 +918,18 @@ def getSafeguardEffectScore(user, duration)
         score += duration * 5
         score += 10 if b.hasSpotsForStatus?
     end
+    
+    return score
+end
+
+def getEnchantmentEffectScore(user, duration)
+    score = 0
+    duration -= user.pbOwnSide.countEffect(:NaturalProtection) if user.pbOwnSide.effectActive?(:NaturalProtection)
+    user.battle.eachSameSideBattler(user.index) do |b|
+        score += duration * 5
+        score += 20 if b.burned? || b.frostbitten? || b.poisoned? || b.leeched?
+    end
+    score += 30 if user.battle.sandy? || user.battle.icy?
     
     return score
 end

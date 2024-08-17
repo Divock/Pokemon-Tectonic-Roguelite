@@ -209,115 +209,19 @@ module PokemonDebugMenuCommands
     }
   })
   
-  PokemonDebugMenuCommands.register("hiddenvalues", {
+  PokemonDebugMenuCommands.register("randomizePID", {
     "parent"      => "levelstats",
-    "name"        => _INTL("EV/IV/pID..."),
+    "name"        => _INTL("Randomize PID"),
     "always_show" => true,
     "effect"      => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
       cmd = 0
       loop do
         persid = sprintf("0x%08X", pkmn.personalID)
-        cmd = screen.pbShowCommands(_INTL("Personal ID is {1}.", persid), [
-             _INTL("Set EVs"),
-             _INTL("Set IVs"),
-             _INTL("Randomise pID")], cmd)
+        cmd = screen.pbShowCommands(_INTL("Personal ID is {1}.", persid), [_INTL("Randomise pID")], cmd)
         break if cmd < 0
-        case cmd
-        when 0   # Set EVs
-          cmd2 = 0
-          loop do
-            totalev = 0
-            evcommands = []
-            ev_id = []
-            GameData::Stat.each_main do |s|
-              evcommands.push(s.name + " (#{pkmn.ev[s.id]})")
-              ev_id.push(s.id)
-              totalev += pkmn.ev[s.id]
-            end
-            evcommands.push(_INTL("Randomise all"))
-            evcommands.push(_INTL("Max randomise all"))
-            cmd2 = screen.pbShowCommands(_INTL("Change which EV?\nTotal: {1}/{2} ({3}%)",
-                                        totalev, Pokemon::EV_LIMIT,
-                                        100 * totalev / Pokemon::EV_LIMIT), evcommands, cmd2)
-            break if cmd2 < 0
-            if cmd2 < ev_id.length
-              params = ChooseNumberParams.new
-              upperLimit = 0
-              GameData::Stat.each_main { |s| upperLimit += pkmn.ev[s.id] if s.id != ev_id[cmd2] }
-              upperLimit = Pokemon::EV_LIMIT - upperLimit
-              upperLimit = [upperLimit, Pokemon::EV_STAT_LIMIT].min
-              thisValue = [pkmn.ev[ev_id[cmd2]], upperLimit].min
-              params.setRange(0, upperLimit)
-              params.setDefaultValue(thisValue)
-              params.setCancelValue(thisValue)
-              f = pbMessageChooseNumber(_INTL("Set the EV for {1} (max. {2}).",
-                 GameData::Stat.get(ev_id[cmd2]).name, upperLimit), params) { screen.pbUpdate }
-              if f != pkmn.ev[ev_id[cmd2]]
-                pkmn.ev[ev_id[cmd2]] = f
-                pkmn.calc_stats
-                screen.pbRefreshSingle(pkmnid)
-              end
-            else   # (Max) Randomise all
-              evTotalTarget = Pokemon::EV_LIMIT
-              if cmd2 == evcommands.length - 2   # Randomize all (not max)
-                evTotalTarget = rand(Pokemon::EV_LIMIT)
-              end
-              GameData::Stat.each_main { |s| pkmn.ev[s.id] = 0 }
-              while evTotalTarget > 0
-                r = rand(ev_id.length)
-                next if pkmn.ev[ev_id[r]] >= Pokemon::EV_STAT_LIMIT
-                addVal = 1 + rand(Pokemon::EV_STAT_LIMIT / 4)
-                addVal = addVal.clamp(0, evTotalTarget)
-                addVal = addVal.clamp(0, Pokemon::EV_STAT_LIMIT - pkmn.ev[ev_id[r]])
-                next if addVal == 0
-                pkmn.ev[ev_id[r]] += addVal
-                evTotalTarget -= addVal
-              end
-              pkmn.calc_stats
-              screen.pbRefreshSingle(pkmnid)
-            end
-          end
-        when 1   # Set IVs
-          cmd2 = 0
-          loop do
-            hiddenpower = pbHiddenPower(pkmn)
-            totaliv = 0
-            ivcommands = []
-            iv_id = []
-            GameData::Stat.each_main do |s|
-              ivcommands.push(s.name + " (#{pkmn.iv[s.id]})")
-              iv_id.push(s.id)
-              totaliv += pkmn.iv[s.id]
-            end
-            msg = _INTL("Change which IV?\nHidden Power:\n{1}, power {2}\nTotal: {3}/{4} ({5}%)",
-               GameData::Type.get(hiddenpower[0]).name, hiddenpower[1], totaliv,
-               iv_id.length * Pokemon::IV_STAT_LIMIT, 100 * totaliv / (iv_id.length * Pokemon::IV_STAT_LIMIT))
-            ivcommands.push(_INTL("Randomise all"))
-            cmd2 = screen.pbShowCommands(msg, ivcommands, cmd2)
-            break if cmd2 < 0
-            if cmd2 < iv_id.length
-              params = ChooseNumberParams.new
-              params.setRange(0, Pokemon::IV_STAT_LIMIT)
-              params.setDefaultValue(pkmn.iv[iv_id[cmd2]])
-              params.setCancelValue(pkmn.iv[iv_id[cmd2]])
-              f = pbMessageChooseNumber(_INTL("Set the IV for {1} (max. 31).",
-                 GameData::Stat.get(iv_id[cmd2]).name), params) { screen.pbUpdate }
-              if f != pkmn.iv[iv_id[cmd2]]
-                pkmn.iv[iv_id[cmd2]] = f
-                pkmn.calc_stats
-                screen.pbRefreshSingle(pkmnid)
-              end
-            else   # Randomise all
-              GameData::Stat.each_main { |s| pkmn.iv[s.id] = rand(Pokemon::IV_STAT_LIMIT + 1) }
-              pkmn.calc_stats
-              screen.pbRefreshSingle(pkmnid)
-            end
-          end
-        when 2   # Randomise pID
-          pkmn.personalID = rand(2 ** 16) | rand(2 ** 16) << 16
-          pkmn.calc_stats
-          screen.pbRefreshSingle(pkmnid)
-        end
+        pkmn.personalID = rand(2 ** 16) | rand(2 ** 16) << 16
+        pkmn.calc_stats
+        screen.pbRefreshSingle(pkmnid)
       end
       next false
     }
@@ -899,31 +803,43 @@ module PokemonDebugMenuCommands
     }
   })
   
-  PokemonDebugMenuCommands.register("setnickname", {
+  PokemonDebugMenuCommands.register("sethueshift", {
     "parent"      => "cosmetic",
-    "name"        => _INTL("Set nickname"),
+    "name"        => _INTL("Set hue shift"),
     "always_show" => true,
     "effect"      => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
-      cmd = 0
-      loop do
-        speciesname = pkmn.speciesName
-        msg = [_INTL("{1} has the nickname {2}.", speciesname, pkmn.name),
-               _INTL("{1} has no nickname.", speciesname)][pkmn.nicknamed? ? 0 : 1]
-        cmd = screen.pbShowCommands(msg, [
-             _INTL("Rename"),
-             _INTL("Erase name")], cmd)
-        break if cmd < 0
-        case cmd
-        when 0   # Rename
-          oldname = (pkmn.nicknamed?) ? pkmn.name : ""
-          newname = pbEnterPokemonName(_INTL("{1}'s nickname?", speciesname),
-                                       0, Pokemon::MAX_NAME_SIZE, oldname, pkmn)
-          pkmn.name = newname
-          screen.pbRefreshSingle(pkmnid)
-        when 1   # Erase name
-          pkmn.name = nil
-          screen.pbRefreshSingle(pkmnid)
-        end
+      if pkmn.egg?
+        screen.pbDisplay(_INTL("{1} is an egg.", pkmn.name))
+      else
+        params = ChooseNumberParams.new
+        params.setNegativesAllowed(true)
+        params.setRange(-90, 90)
+        params.setDefaultValue(0)
+        newhueshift = pbMessageChooseNumber(
+          _INTL("Set {1}'s Hue Shift (Gameplay range is {2} to {3}).", pkmn.name, -(Pokemon::HUE_SHIFT_RANGE/2), Pokemon::HUE_SHIFT_RANGE/2), params) { screen.pbUpdate }
+        pkmn.manual_hue_shift = newhueshift
+        screen.pbRefreshSingle(pkmnid)
+      end
+      next false
+    }
+  })
+
+  PokemonDebugMenuCommands.register("setshadeshift", {
+    "parent"      => "cosmetic",
+    "name"        => _INTL("Set shade shift"),
+    "always_show" => true,
+    "effect"      => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+      if pkmn.egg?
+        screen.pbDisplay(_INTL("{1} is an egg.", pkmn.name))
+      else
+        params = ChooseNumberParams.new
+        params.setNegativesAllowed(true)
+        params.setRange(-160, 160)
+        params.setDefaultValue(0)
+        newshadeshift = pbMessageChooseNumber(
+          _INTL("Set {1}'s Shade Shift (Gameplay range is {2} to {3}).", pkmn.name, -(Pokemon::SHADE_SHIFT_RANGE/2), Pokemon::SHADE_SHIFT_RANGE/2), params) { screen.pbUpdate }
+        pkmn.manual_shade_shift = newshadeshift
+        screen.pbRefreshSingle(pkmnid)
       end
       next false
     }
@@ -1016,50 +932,6 @@ module PokemonDebugMenuCommands
     }
   })
   
-  PokemonDebugMenuCommands.register("shadowpkmn", {
-    "parent"      => "main",
-    "name"        => _INTL("Shadow Pkmn..."),
-    "always_show" => true,
-    "effect"      => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
-      cmd = 0
-      loop do
-        msg = [_INTL("Not a Shadow Pokémon."),
-               _INTL("Heart gauge is {1} (stage {2}).", pkmn.heart_gauge, pkmn.heartStage)
-              ][pkmn.shadowPokemon? ? 1 : 0]
-        cmd = screen.pbShowCommands(msg, [
-           _INTL("Make Shadow"),
-           _INTL("Set heart gauge")], cmd)
-        break if cmd < 0
-        case cmd
-        when 0   # Make Shadow
-          if !pkmn.shadowPokemon?
-            pkmn.makeShadow
-            screen.pbRefreshSingle(pkmnid)
-          else
-            screen.pbDisplay(_INTL("{1} is already a Shadow Pokémon.", pkmn.name))
-          end
-        when 1   # Set heart gauge
-          if pkmn.shadowPokemon?
-            oldheart = pkmn.heart_gauge
-            params = ChooseNumberParams.new
-            params.setRange(0, Pokemon::HEART_GAUGE_SIZE)
-            params.setDefaultValue(pkmn.heart_gauge)
-            val = pbMessageChooseNumber(
-               _INTL("Set the heart gauge (max. {1}).", Pokemon::HEART_GAUGE_SIZE),
-               params) { screen.pbUpdate }
-            if val != oldheart
-              pkmn.adjustHeart(val - oldheart)
-              pkmn.check_ready_to_purify
-            end
-          else
-            screen.pbDisplay(_INTL("{1} is not a Shadow Pokémon.", pkmn.name))
-          end
-        end
-      end
-      next false
-    }
-  })
-  
   PokemonDebugMenuCommands.register("mysterygift", {
     "parent"      => "main",
     "name"        => _INTL("Mystery Gift"),
@@ -1075,7 +947,7 @@ module PokemonDebugMenuCommands
     "effect"      => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
       if screen.pbConfirm(_INTL("Are you sure you want to copy this Pokémon?"))
         clonedpkmn = pkmn.clone
-        if screen.is_a?(PokemonPartyScreen)
+        if screen.is_a?(PokemonPartyScreen) || screen.is_a?(TilingCardsPokemonMenu_Scene)
           pbStorePokemon(clonedpkmn)
           screen.pbHardRefresh
           screen.pbDisplay(_INTL("The Pokémon was duplicated."))

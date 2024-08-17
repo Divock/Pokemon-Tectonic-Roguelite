@@ -1,14 +1,3 @@
-#===============================================================================
-# Battle preparation
-#===============================================================================
-class PokemonGlobalMetadata
-  attr_accessor :nextBattleBGM
-  attr_accessor :nextBattleME
-  attr_accessor :nextBattleCaptureME
-  attr_accessor :nextBattleBack
-end
-
-
 def pbNewBattleScene
   return PokeBattle_Scene.new
 end
@@ -99,13 +88,13 @@ def pbPrepareBattle(battle)
   elsif $game_screen.weather_in_battle
     case GameData::Weather.get($game_screen.weather_type).category
     when :Rain
-      battle.defaultWeather = :Rain
+      battle.defaultWeather = :Rainstorm
     when :Hail
       battle.defaultWeather = :Hail
     when :Sandstorm
       battle.defaultWeather = :Sandstorm
     when :Sun
-      battle.defaultWeather = :Sun
+      battle.defaultWeather = :Sunshine
     when :Eclipse
       battle.defaultWeather = :Eclipse
     when :Moonglow

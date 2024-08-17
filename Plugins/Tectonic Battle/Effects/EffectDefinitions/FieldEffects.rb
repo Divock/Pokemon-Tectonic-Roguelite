@@ -32,9 +32,10 @@ GameData::BattleEffect.register_effect(:Field, {
     :ticks_down => true,
     :apply_proc => proc do |battle, _value|
         battle.pbDisplay(_INTL("Gravity intensified!"))
+        battle.pbDisplay(_INTL("Everyone is twice as accurate!"))
         battle.eachBattler do |b|
             showMessage = false
-            if b.inTwoTurnAttack?("0C9", "0CC", "0CE")   # Fly/Bounce/Sky Drop
+            if b.inTwoTurnSkyAttack?
                 b.disableEffect(:TwoTurnAttack)
                 battle.pbClearChoice(b.index) unless b.movedThisRound?
                 showMessage = true

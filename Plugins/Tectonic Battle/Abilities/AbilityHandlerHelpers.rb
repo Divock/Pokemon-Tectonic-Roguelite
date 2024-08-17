@@ -1,10 +1,10 @@
 # For abilities that grant immunity to moves of a particular type, and heals the
 # ability's bearer by 1/4 of its total HP instead.
-def pbBattleMoveImmunityHealAbility(ability, user, target, move, moveType, immuneType, battle, showMessages, aiCheck = false)
+def pbBattleMoveImmunityHealAbility(ability, user, target, move, moveType, immuneType, battle, showMessages, aiCheck = false, canOverheal: false)
     return false if user.index == target.index
     return false if moveType != immuneType
     return true if aiCheck
-    if target.applyFractionalHealing(1.0 / 4.0, ability: ability) <= 0 && showMessages
+    if target.applyFractionalHealing(1.0 / 4.0, ability: ability, canOverheal: canOverheal) <= 0 && showMessages
         battle.pbShowAbilitySplash(target, ability)
         battle.pbDisplay(_INTL("{1}'s {2} made {3} ineffective!", target.pbThis, getAbilityName(ability),
 move.name))
@@ -36,7 +36,7 @@ def pbBattleWeatherAbility(ability, weather, battler, battle, ignorePrimal = fal
     return 0 if !ignorePrimal && battle.primevalWeatherPresent?(!aiCheck)
     if aiCheck
         if baseDuration < 0 # infinite
-            duration = 20 - battle.turnCount
+            duration = 20
         else
             duration = battler.getWeatherSettingDuration(weather, baseDuration, ignoreFainted)
             duration -= battle.field.weatherDuration if battle.field.weather == weather
@@ -100,7 +100,7 @@ def entryDebuffAbility(ability, battler, battle, statDownArray, aiCheck: false)
 end
 
 def entryTrappingAbility(ability, battler, battle, trappingMove, trappingDuration: 2, aiCheck: false, &block)
-    trappingDuration *= 2 if battler.hasActiveItem?(:GRIPCLAW)
+    trappingDuration *= 2 if battler.shouldItemApply?(:GRIPCLAW,aiCheck )
 
     score = 0
     battle.pbShowAbilitySplash(battler, ability) unless aiCheck
@@ -146,4 +146,22 @@ def entryLowestHealingAbility(ability, battler, battle, healingFraction = 0.5, a
     battle.pbShowAbilitySplash(battler, ability)
     lowestIdBattler.applyFractionalHealing(healingFraction, customMessage: healMessage)
     battle.pbHideAbilitySplash(battler)
+end
+
+# Protean and such
+def moveUseTypeChangeAbility(ability, user, move, battle, thirdType = false)
+    return false if move.callsAnotherMove?
+    return false if move.snatched
+    return false if GameData::Type.get(move.calcType).pseudo_type
+    return false unless user.pbHasOtherType?(move.calcType)
+    battle.pbShowAbilitySplash(user, ability)
+    if thirdType
+        user.applyEffect(:Type3, move.calcType)
+    else
+        user.pbChangeTypes(move.calcType)
+        typeName = GameData::Type.get(move.calcType).name
+        battle.pbDisplay(_INTL("{1} transformed into the {2} type!", user.pbThis, typeName))
+    end
+    battle.pbHideAbilitySplash(user)
+    return true
 end

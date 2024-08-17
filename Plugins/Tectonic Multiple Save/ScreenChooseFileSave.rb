@@ -16,7 +16,7 @@ class ScreenChooseFileSave
         # Check quantity
         @count = count
         if @count <= 0
-            pbMessage("No save file was found.")
+            pbMessage(_INTL("No save file was found."))
             return
         end
         # Check still menu
@@ -205,7 +205,7 @@ $Trainer.name))
                                 pbMessage(_INTL("\\se[]Save failed.\\wtnp[30]"))
                                 ret = false
                             end
-                            $storenamefilesave = FileSave.name(@position + 1)
+                            $current_save_file_name = FileSave.name(@position + 1)
                             setProperSavePath
                             break
                         # Delete file
@@ -246,7 +246,7 @@ $Trainer.name))
                 end
                 if checkInput(Input::USE)
                     # Set up system again
-                    $storenamefilesave = FileSave.name(@position + 1)
+                    $current_save_file_name = FileSave.name(@position + 1)
                     Game.set_up_system
                     if @posinfor == 0
                         Game.load(fileLoad(true))

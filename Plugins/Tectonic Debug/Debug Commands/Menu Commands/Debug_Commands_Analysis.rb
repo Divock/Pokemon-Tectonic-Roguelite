@@ -123,14 +123,23 @@ DebugMenuCommands.register("analyzeitemdistribution", {
               end
           end
   
-          file.write("All the items which have not a single distribution:")
+          file.write("\r\nAll the items which have not a single distribution:\r\n")
           writeIndex = 0
           GameData::Item.each do |itemData|
               next if allItemsGiven.include?(itemData.id)
-              str = itemData.id.to_s + (writeIndex % 6 == 0 ? "\r\n" : ", ")
+              next if itemData.cut
+              str = itemData.id.to_s + (writeIndex % 6 == 5 ? "\r\n" : ", ")
               writeIndex += 1
               file.write(str) 
           end
+
+          file.write("\r\nAll the machines, and which are distributed:\r\n")
+          GameData::Item.each do |itemData|
+            next unless itemData.is_machine?
+            used = allItemsGiven.include?(itemData.id)
+            str = "#{itemData.real_name},#{itemData.move},#{used}\r\n"
+            file.write(str) 
+        end
       }
   
       pbMessage(_INTL("Item distribution analysis written to Analysis/item_distribution.txt"))
@@ -200,7 +209,9 @@ DebugMenuCommands.register("analyzeitemdistribution", {
     "name"        => _INTL("Analyze Cross-Map Switching"),
     "description" => _INTL("Find the events which affect events on other maps through pbSetSelfSwitch"),
     "effect"      => proc { |sprites, viewport|
-      writeAllCodeInstances(/pbSetSelfSwitch\(([0-9]+),('[A,B,C,D,a,b,c,d]'),((?:true)|(?:false)),([0-9]+)\)/, "Analysis/switching_analysis.txt")
+      writeAllCodeInstances(/pbSetSelfSwitch\(([0-9]+),('[A,B,C,D,a,b,c,d]'),((?:true)|(?:false)),([0-9]+)\)/, "Analysis/switching_analysis.txt") { |event, page, eventcommand, parameter, match|
+        "\tSetting switch #{match[1]} of event ID #{match[0]} on map ID #{match[3]} to #{match[2]}\r\n"
+      }
     }}
   )
   
@@ -208,7 +219,7 @@ DebugMenuCommands.register("analyzeitemdistribution", {
       writeAllCodeInstances(regex, fileName)
   end
   
-  def writeAllCodeInstances(regex, fileName)
+  def writeAllCodeInstances(regex, fileName, &block)
       mapData = Compiler::MapData.new
       File.open(fileName,"wb") { |file|
           for id in mapData.mapinfos.keys.sort
@@ -216,7 +227,9 @@ DebugMenuCommands.register("analyzeitemdistribution", {
               next if !map || !mapData.mapinfos[id]
               mapName = mapData.mapinfos[id].name
               for key in map.events.keys
-                  describeCodeInstances(id,mapName,map.events[key],file,regex)
+                  describeCodeInstances(id,mapName,map.events[key],file,regex) { |event, page, eventcommand, parameter, match|
+                    block.call(event, page, eventcommand, parameter, match) if block_given?
+                  }
               end
           end
       }
@@ -224,7 +237,7 @@ DebugMenuCommands.register("analyzeitemdistribution", {
       pbMessage(_INTL("Code instance analysis written to #{fileName}"))
   end
   
-  def describeCodeInstances(map_id,map_name,event,file,regex)
+  def describeCodeInstances(map_id,map_name,event,file,regex,&block)
       return [] if !event || event.pages.length==0
       event.pages.each do |page|
           page.list.each do |eventCommand|
@@ -234,14 +247,61 @@ DebugMenuCommands.register("analyzeitemdistribution", {
                   if match
                       eventName = event.name.gsub(",","")
   
-                      string = "Map #{map_name} (#{map_id}), event #{eventName} (#{event.id})\r\n"
-                                          
+                      string = "Map \"#{map_name}\" (#{map_id}), event \"#{eventName}\" (#{event.id})\r\n"
                       file.write(string)
+                      file.write("\t#{parameter}\r\n")
+                      file.write(block.call(event, page, eventCommand, parameter, match)) if block_given?
+                                          
+                      
                   end
               end
           end
       end
   end
+
+  def RACI(regex, newText)
+    replaceAllCodeInstances(regex, newText)
+  end
+
+def replaceAllCodeInstances(regex, newText)
+    mapData = Compiler::MapData.new
+    for id in mapData.mapinfos.keys.sort
+        map = mapData.getMap(id)
+        next if !map || !mapData.mapinfos[id]
+        mapName = mapData.mapinfos[id].name
+        changed = false
+        for key in map.events.keys
+            changed = true if replaceCodeInstances(id,mapName,map.events[key],regex,newText)
+        end
+        mapData.saveMap(id) if changed
+    end
+end
+
+def replaceCodeInstances(map_id,map_name,event,regex,newText)
+    return [] if !event || event.pages.length==0
+    changed = false
+    event.pages.each do |page|
+        page.list.each do |eventCommand|
+            eventCommand.parameters.map! { |parameter|
+                next parameter unless parameter.is_a?(String)
+                oldParam = parameter.clone
+                newParam = parameter.gsub!(regex,newText)
+                if newParam
+                    eventName = event.name.gsub(",","")
+
+                    echoln "Map #{map_name} (#{map_id}), event #{eventName} (#{event.id}):\r\n"
+                    echoln("\tParameter #{oldParam} changed to #{newParam}")
+
+                    changed = true
+                    
+                    next newParam
+                end
+                next parameter
+            }
+        end
+    end
+    return changed
+end
   
 
   DebugMenuCommands.register("analyzedistribution", {
@@ -562,6 +622,97 @@ DebugMenuCommands.register("analyzeitemdistribution", {
     }
   })
 
+  DebugMenuCommands.register("listprimevalmoves", {
+    "parent"      => "analysis",
+    "name"        => _INTL("List primeval moves"),
+    "description" => _INTL("List all primeval moves."),
+    "effect"      => proc { |sprites, viewport|
+      
+      moveDataSorted = []
+      GameData::Move.each do |moveData|
+          next unless moveData.primeval
+          moveDataSorted.push(moveData)
+      end
+  
+      moveDataSorted.sort_by! { |data|
+          GameData::Type.get(data.type).id_number * 10_000 + data.category * 1000 + data.base_damage
+      }
+  
+      File.open("Analysis/primeval_moves.txt","wb") { |file|
+          moveDataSorted.each do |moveData|
+              moveLine = describeMove(moveData.id)
+              moveLine += "\r\n"
+              file.write(moveLine)
+          end
+      }
+      pbMessage(_INTL("Primeval moves information written to Analysis/primeval_moves.txt"))
+    }
+  })
+
+  DebugMenuCommands.register("listhelditems", {
+    "parent"      => "analysis",
+    "name"        => _INTL("List held items"),
+    "description" => _INTL("List all items that the player's Pokemon can hold for use in battle."),
+    "effect"      => proc { |sprites, viewport|
+      
+      itemDataSorted = []
+      GameData::Item.each do |itemData|
+          next if itemData.super
+          next if itemData.cut
+          next unless itemData.pocket == 5
+          itemDataSorted.push(itemData)
+      end
+  
+      itemDataSorted.sort_by! { |data|
+          data.real_name
+      }
+  
+      File.open("Analysis/held_items.txt","wb") { |file|
+        itemDataSorted.each do |itemData|
+              itemLine = describeItem(itemData.id)
+              itemLine += "\r\n"
+              file.write(itemLine)
+          end
+      }
+      pbMessage(_INTL("Held item information written to Analysis/held_items.txt"))
+    }
+  })
+
+  DebugMenuCommands.register("listsuperitems", {
+    "parent"      => "analysis",
+    "name"        => _INTL("List super items"),
+    "description" => _INTL("List all super items used in curses."),
+    "effect"      => proc { |sprites, viewport|
+      
+        itemDataSorted = []
+        GameData::Item.each do |itemData|
+            next unless itemData.super
+            next if itemData.cut
+            next unless itemData.pocket == 5
+            itemDataSorted.push(itemData)
+        end
+
+        itemDataSorted.sort_by! { |data|
+            data.real_name
+        }
+
+        File.open("Analysis/held_items_super.txt","wb") { |file|
+            itemDataSorted.each do |itemData|
+                itemLine = describeItem(itemData.id)
+                itemLine += "\r\n"
+                file.write(itemLine)
+            end
+        }
+        pbMessage(_INTL("Held item information written to Analysis/held_items_super.txt"))
+    }
+  })
+  
+  def describeItem(itemID)
+      itemData = GameData::Item.get(itemID)
+      itemLine = "#{itemData.real_name},\"#{itemData.description}\""
+      return itemLine
+  end
+
   DebugMenuCommands.register("counttribes", {
     "parent"      => "analysis",
     "name"        => _INTL("Count tribes"),
@@ -610,7 +761,7 @@ DebugMenuCommands.register("analyzeitemdistribution", {
           end
       end
   
-      pbMessage("Any legality errors written into the console.")
+      pbMessage(_INTL("Any legality errors written into the console."))
     }}
   )
   

@@ -290,11 +290,11 @@ class PokeBattle_Battle
         end
 
         # Track information for perfecting
-        $game_switches[94] = false
+        trackPerfectBattle(false)
         ableBeforeFight = $Trainer.able_pokemon_count # Record the number of able party members, for perfecting
         skipPerfecting = false
         @opponent&.each do |opp|
-            skipPerfecting = true if opp.policies.include?(:NO_PERFECT)
+            skipPerfecting = true if opp.is_no_perfect?
         end
 
         # Update tribe counts
@@ -322,7 +322,7 @@ class PokeBattle_Battle
         unless @autoTesting
             # Record if the fight was perfected
             if $Trainer.able_pokemon_count >= ableBeforeFight
-                $game_switches[94] = true
+                trackPerfectBattle(true)
                 if trainerBattle? && @decision == 1 && !skipPerfecting
                     pbMessage(_INTL("\\me[Battle perfected]You perfected the fight!"))
                 end
@@ -335,10 +335,10 @@ class PokeBattle_Battle
                     wasOnStreak = pkmn.onHotStreak?
                     if pkmn.fainted? || [2, 3].include?(@decision)
                         pkmn.battlingStreak = 0
-                        pbMessage("#{pkmn.name}'s Hot Streak is now over.") if wasOnStreak
+                        pbMessage(_INTL("#{pkmn.name}'s Hot Streak is now over.")) if wasOnStreak
                     elsif @usedInBattle[0][i]
                         pkmn.battlingStreak += 1
-                        pbMessage("#{pkmn.name} is on a Hot Streak!") if pkmn.onHotStreak? && !wasOnStreak
+                        pbMessage(_INTL("#{pkmn.name} is on a Hot Streak!")) if pkmn.onHotStreak? && !wasOnStreak
                     end
                 end
             end
@@ -366,10 +366,13 @@ class PokeBattle_Battle
         pbStartBattleSendOut(sendOuts) unless @autoTesting
         # Curses apply if at all
         if @opponent && $PokemonGlobal.tarot_amulet_active
+            @statItemsAreMetagameRevealed = false
             @opponent.each do |opponent|
                 opponent.policies.each do |policy|
                     cursesToAdd = triggerBattleStartApplyCurse(policy, self, [])
                     curses.concat(cursesToAdd)
+
+                    @metaGamingStatItems = true if policy == :METAGAMES_STAT_ITEMS
                 end
             end
         end
@@ -377,14 +380,13 @@ class PokeBattle_Battle
         weather_data = GameData::BattleWeather.try_get(@field.weather)
         pbCommonAnimation(weather_data.animation) if weather_data
         case @field.weather
-        when :Sun         then pbDisplay(_INTL("The sunlight is strong."))
-        when :Rain        then pbDisplay(_INTL("It is raining."))
+        when :Sunshine         then pbDisplay(_INTL("The sunlight is strong."))
+        when :Rainstorm   then pbDisplay(_INTL("It is storming."))
         when :Sandstorm   then pbDisplay(_INTL("A sandstorm is raging."))
         when :Hail        then pbDisplay(_INTL("Hail is falling."))
         when :HarshSun    then pbDisplay(_INTL("The sunlight is extremely harsh."))
         when :HeavyRain   then pbDisplay(_INTL("It is raining heavily."))
         when :StrongWinds then pbDisplay(_INTL("The wind is strong."))
-        when :ShadowSky   then pbDisplay(_INTL("The sky is shadowy."))
         when :RingEclipse then pbDisplay(_INTL("A planetary ring dominates the skyline."))
         when :Bloodmoon   then pbDisplay(_INTL("The moon is taken by a nightmare."))
         end
@@ -393,7 +395,7 @@ class PokeBattle_Battle
             eachBattler do |b|
                 next unless b.boss?
                 loop do
-                    b.pokemon.species = GameData::Avatar::DATA.keys.sample
+                    b.pokemon.species = GameData::Avatar::DATA.values.sample.id[0]
                     break if GameData::Avatar::DATA.has_key?(b.pokemon.species)
                 end
                 setAvatarProperties(b.pokemon)
@@ -452,7 +454,7 @@ class PokeBattle_Battle
                 numExtraPhasesThisTurn = b.extraMovesPerTurn if b.extraMovesPerTurn > numExtraPhasesThisTurn
             end
 
-            # Boss phases after main phases
+            # Extra phases after main phases
             if numExtraPhasesThisTurn > 0
                 for i in 1..numExtraPhasesThisTurn do
                     echoln("Extra phase begins")

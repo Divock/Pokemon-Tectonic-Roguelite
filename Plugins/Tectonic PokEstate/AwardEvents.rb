@@ -1,57 +1,4 @@
 ##############################################
-# GENERATION REWARDS (40 of them)
-##############################################
-
-gen1Rewards = [[:EXPCANDYM,4],[:EXPCANDYM,8],[:EXPCANDYL,3],[:EXPCANDYL,4],[:EXPCANDYL,5],[:EXPCANDYL,6]]
-gen1Thresholds = [14,23,36,58,94,151]
-
-gen2Rewards = [[:EXPCANDYM,4],[:EXPCANDYM,8],[:EXPCANDYL,3],[:EXPCANDYL,4],[:EXPCANDYL,5]]
-gen2Thresholds = [15,25,40,65,100]
-
-gen3Rewards = gen1Rewards.clone
-gen3Thresholds = [12,20,32,52,84,135]
-
-gen4Rewards = gen2Rewards.clone
-gen4Thresholds = [16,26,41,66,107]
-
-gen5Rewards = gen1Rewards.clone
-gen5Thresholds = [15,25,40,60,100,156]
-
-gen6Rewards = [[:EXPCANDYM,4],[:EXPCANDYM,8],[:EXPCANDYL,3],[:EXPCANDYL,4]]
-gen6Thresholds = [17,28,45,72]
-
-gen7Rewards = gen6Rewards.clone
-gen7Thresholds = [20,40,60,81]
-
-gen8Rewards = gen6Rewards.clone
-gen8Thresholds = [22,44,67,89]
-
-generationRewardsHash = {
-    gen1Thresholds => gen1Rewards,
-    gen2Thresholds => gen2Rewards,
-    gen3Thresholds => gen3Rewards,
-    gen4Thresholds => gen4Rewards,
-    gen5Thresholds => gen5Rewards,
-    gen6Thresholds => gen6Rewards,
-    gen7Thresholds => gen7Rewards,
-    gen8Thresholds => gen8Rewards,
-}
-
-generationRewardsHash.each_with_index do |kvp,generationIndex|
-    generationThresholds    = kvp[0]
-    generationRewards       = kvp[1]
-    realGeneration          = generationIndex + 1
-    generationThresholds.each_with_index do |threshold,thresholdIndex|
-        id = ("GEN" + realGeneration.to_s + "AWARD" + thresholdIndex.to_s).to_sym
-        PokEstate::GrantAwards.add(id,
-            proc { |pokedex|
-                next generationReward(realGeneration,threshold,generationRewards[thresholdIndex])
-            }
-        )
-    end
-end
-
-##############################################
 # TYPE REWARDS (54 of them)
 ##############################################
 typeThreshold = [10,25,50]
@@ -74,10 +21,10 @@ PokEstate::LoadDataDependentAwards += proc {
 }
 
 ##############################################
-# TRIBE REWARDS (66 of them)
+# TRIBE REWARDS (44 of them)
 ##############################################
-tribeThreshold = [10,20,40]
-tribeRewards = [[:EXPCANDYM,6],[:EXPCANDYL,3],[:EXPCANDYL,6]]
+tribeThreshold = [15,30]
+tribeRewards = [[:EXPCANDYM,6],[:EXPCANDYL,3]]
 
 PokEstate::LoadDataDependentAwards += proc {
     # For every type, create three award event subscribers at different thresholds
@@ -94,68 +41,207 @@ PokEstate::LoadDataDependentAwards += proc {
 }
 
 ##############################################
-# ROUTE REWARDS (23 of them)
+# ROUTE REWARDS (45  of them)
 ##############################################
-SMALL_ROUTES =
-[
+# 0
+SMALL_ROUTES_CASABA = [
+]
+
+# 13
+SMALL_ROUTES_PRE_SURF = [
+    56, # Novo Town
+    25, # Grouz
+    36, # Grouz Mine
+    326, # Carnation Graves
+    6, # LuxTech Campus
+    122, # LuxTech Sewers
+    40, # Gigalith's Guts
+    120, # Hollowed Layer
+    214, # Team Chasm HQ
+    121, # Kilna Ascent
+    37, # Svait
+    117, # Ice Cave
+    8, # Velenz
+    129, # Barren Crater
+]
+
+# 7
+SMALL_ROUTES_POST_SURF = [
+    155, # Prizca West
+    34, # Battle Plaza
+    223, # Battle Plaza Underground
+    187, # Prizca East
+    220, # Ancient Sewers
+    217, # Sweetrock Harbor
+    316, # Sandstone Estuary
+]
+ 
+# 5
+MEDIUM_ROUTES_CASABA = [
     136, # Casaba Villa
     138, # Scenic Trail
     30, # Windy Way
     51, # Foreclosed Tunnel
     26, # Bluepoint Grotto
+]
 
-    59, # Mainland Dock
+# 6
+MEDIUM_ROUTES_PRE_SURF =
+[
+    59, # Feebas' Fin
     60, # Shipping Lane
-    130, # Canal Desert
-
-    3, # The Shift
-    55, # Floral Rest
+    3, # The Shelf
+    55, # Lingering Delta
     11, # Eleig River Crossing
-    7, # Wet Walkways
+    7, # Repora Forest
+]
 
+# 7
+MEDIUM_ROUTES_POST_SURF = [
+    130, # Canal Desert
     186, # Frostflow Farms
     216, # Highland Lake
-
     193, # Volcanic Shore
     196, # Boiling Cave
-
     288, # Underground River
     218, # Abyssal Cavern
 ]
 
-BIG_ROUTES = 
-[
+# 1
+BIG_ROUTES_CASABA = [
     38, # Bluepoint Beach
+]
+
+# 2
+BIG_ROUTES_PRE_SURF = [
     53, # The Shelf
     301, # County Park
+]
+
+# 2
+BIG_ROUTES_POST_SURF = [
     185, # Eleig Stretch
     211, # Split Peaks
 ]
 
-PokEstate::LoadDataDependentAwards += proc {   
-    SMALL_ROUTES.each do |routeID|
+PokEstate::LoadDataDependentAwards += proc {
+    # CASABA ISLAND #
+    SMALL_ROUTES_CASABA.each do |routeID|
         routeName = pbGetMapNameFromId(routeID)
         id = ("ROUTE" + routeName + "AWARD").to_sym
         PokEstate::GrantAwards.add(id,
             proc { |pokedex|
-                if pokedex.allOwnedFromRoute?(routeID)
-                    next [[:EXPCANDYM,8],_INTL("all species on #{routeName}")]
-                end
-                next
+                reward = [:EXPCANDYS,5]
+                next areaReward(routeID,reward)
             }
         )
     end
 
-    BIG_ROUTES.each do |routeID|
+    MEDIUM_ROUTES_CASABA.each do |routeID|
         routeName = pbGetMapNameFromId(routeID)
         id = ("ROUTE" + routeName + "AWARD").to_sym
         PokEstate::GrantAwards.add(id,
             proc { |pokedex|
-                if pokedex.allOwnedFromRoute?(routeID)
-                    next [[:EXPCANDYL,3],_INTL("all species on #{routeName}")]
-                end
-                next
+                reward = [:EXPCANDYS,10]
+                next areaReward(routeID,reward)
             }
         )
     end
+
+    BIG_ROUTES_CASABA.each do |routeID|
+        routeName = pbGetMapNameFromId(routeID)
+        id = ("ROUTE" + routeName + "AWARD").to_sym
+        PokEstate::GrantAwards.add(id,
+            proc { |pokedex|
+                reward = [:EXPCANDYS,15]
+                next areaReward(routeID,reward)
+            }
+        )
+    end
+
+    # PRE-SURF ROUTES #
+
+    SMALL_ROUTES_PRE_SURF.each do |routeID|
+        routeName = pbGetMapNameFromId(routeID)
+        id = ("ROUTE" + routeName + "AWARD").to_sym
+        PokEstate::GrantAwards.add(id,
+            proc { |pokedex|
+                reward = [:EXPCANDYM,3]
+                next areaReward(routeID,reward)
+            }
+        )
+    end
+
+    MEDIUM_ROUTES_PRE_SURF.each do |routeID|
+        routeName = pbGetMapNameFromId(routeID)
+        id = ("ROUTE" + routeName + "AWARD").to_sym
+        PokEstate::GrantAwards.add(id,
+            proc { |pokedex|
+                reward = [:EXPCANDYM,6]
+                next areaReward(routeID,reward)
+            }
+        )
+    end
+
+    BIG_ROUTES_PRE_SURF.each do |routeID|
+        routeName = pbGetMapNameFromId(routeID)
+        id = ("ROUTE" + routeName + "AWARD").to_sym
+        PokEstate::GrantAwards.add(id,
+            proc { |pokedex|
+                reward = [:EXPCANDYM,9]
+                next areaReward(routeID,reward)
+            }
+        )
+    end
+
+    # POST-SURF #
+
+    SMALL_ROUTES_POST_SURF.each do |routeID|
+        routeName = pbGetMapNameFromId(routeID)
+        id = ("ROUTE" + routeName + "AWARD").to_sym
+        PokEstate::GrantAwards.add(id,
+            proc { |pokedex|
+                reward = [:EXPCANDYL,2]
+                next areaReward(routeID,reward)
+            }
+        )
+    end
+
+    MEDIUM_ROUTES_POST_SURF.each do |routeID|
+        routeName = pbGetMapNameFromId(routeID)
+        id = ("ROUTE" + routeName + "AWARD").to_sym
+        PokEstate::GrantAwards.add(id,
+            proc { |pokedex|
+                reward = [:EXPCANDYL,4]
+                next areaReward(routeID,reward)
+            }
+        )
+    end
+
+    BIG_ROUTES_POST_SURF.each do |routeID|
+        routeName = pbGetMapNameFromId(routeID)
+        id = ("ROUTE" + routeName + "AWARD").to_sym
+        PokEstate::GrantAwards.add(id,
+            proc { |pokedex|
+                reward = [:EXPCANDYL,6]
+                next areaReward(routeID,reward)
+            }
+        )
+    end
+
+    # HUGE ROUTES #
+
+    PokEstate::GrantAwards.add("MENAGERIEREWARD",
+        proc { |pokedex|
+            reward = [:EXPCANDYXL,10]
+            next areaReward(213,reward)
+        }
+    )
+
+    PokEstate::GrantAwards.add("OCEANFISHINGREWARD",
+        proc { |pokedex|
+            reward = [:EXPCANDYXL,15]
+            next areaReward(239,reward)
+        }
+    )
 }

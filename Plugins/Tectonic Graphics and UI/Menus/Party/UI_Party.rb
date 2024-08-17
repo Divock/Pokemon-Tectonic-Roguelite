@@ -130,6 +130,54 @@ end
          @commands[index],base,shadow)
     end
   end
+
+  class Window_CommandPokemonAlternatingColor < Window_CommandPokemon
+    BASE_WEIGHT = 2
+    COLOR_WEIGHT = 1
+    TOTAL_WEIGHT = BASE_WEIGHT + COLOR_WEIGHT
+
+    def initialize(commands,width=nil)
+      super
+      
+      firstFullColor = getSkinColor(self.windowskin,1,isDarkWindowskin(self.windowskin),false)
+      firstFullBaseColor = rgbToColor(firstFullColor[0])
+      firstFullShadowColor = rgbToColor(firstFullColor[1])
+      firstBaseRed = (self.baseColor.red * BASE_WEIGHT + firstFullBaseColor.red * COLOR_WEIGHT) / TOTAL_WEIGHT
+      firstBaseGreen = (self.baseColor.green * BASE_WEIGHT + firstFullBaseColor.green * COLOR_WEIGHT) / TOTAL_WEIGHT
+      firstBaseBlue = (self.baseColor.blue * BASE_WEIGHT + firstFullBaseColor.blue * COLOR_WEIGHT) / TOTAL_WEIGHT
+      @firstBaseColor = Color.new(firstBaseRed,firstBaseGreen,firstBaseBlue)
+      firstShadowRed = (self.shadowColor.red * BASE_WEIGHT + firstFullShadowColor.red * COLOR_WEIGHT) / TOTAL_WEIGHT
+      firstShadowGreen = (self.shadowColor.green * BASE_WEIGHT + firstFullShadowColor.green * COLOR_WEIGHT) / TOTAL_WEIGHT
+      firstShadowBlue = (self.shadowColor.blue * BASE_WEIGHT + firstFullShadowColor.blue * COLOR_WEIGHT) / TOTAL_WEIGHT
+      @firstShadowColor = Color.new(firstShadowRed,firstShadowGreen,firstShadowBlue)
+
+      secondFullColor = getSkinColor(self.windowskin,2,isDarkWindowskin(self.windowskin),false)
+      secondFullBaseColor = rgbToColor(secondFullColor[0])
+      secondFullShadowColor = rgbToColor(secondFullColor[1])
+      secondBaseRed = (self.baseColor.red * BASE_WEIGHT + secondFullBaseColor.red * COLOR_WEIGHT) / TOTAL_WEIGHT
+      secondBaseGreen = (self.baseColor.green * BASE_WEIGHT + secondFullBaseColor.green * COLOR_WEIGHT) / TOTAL_WEIGHT
+      secondBaseBlue = (self.baseColor.blue * BASE_WEIGHT + secondFullBaseColor.blue * COLOR_WEIGHT) / TOTAL_WEIGHT
+      @secondBaseColor = Color.new(secondBaseRed,secondBaseGreen,secondBaseBlue)
+      secondShadowRed = (self.shadowColor.red * BASE_WEIGHT + secondFullShadowColor.red * COLOR_WEIGHT) / TOTAL_WEIGHT
+      secondShadowGreen = (self.shadowColor.green * BASE_WEIGHT + secondFullShadowColor.green * COLOR_WEIGHT) / TOTAL_WEIGHT
+      secondShadowBlue = (self.shadowColor.blue * BASE_WEIGHT + secondFullShadowColor.blue * COLOR_WEIGHT) / TOTAL_WEIGHT
+      @secondShadowColor = Color.new(secondShadowRed,secondShadowGreen,secondShadowBlue)
+    end
+
+    def drawItem(index,_count,rect)
+      pbSetSystemFont(self.contents) if @starting
+      rect = drawCursor(index,rect)
+      if index % 2 == 0
+        base   = @firstBaseColor
+        shadow = @firstShadowColor
+      else
+        base   = @secondBaseColor
+        shadow = @secondShadowColor
+      end
+      pbDrawShadowText(self.contents,rect.x,rect.y,rect.width,rect.height,
+         @commands[index],base,shadow)
+    end
+  end
   
   #===============================================================================
   # Blank party panel
@@ -191,9 +239,9 @@ end
         @panelbgsprite.addBitmap("swapsel2","Graphics/Pictures/Party/panel_rect_swap_sel2")
         @hpbgsprite = ChangelingSprite.new(0,0,viewport)
         @hpbgsprite.z = self.z+1
-        @hpbgsprite.addBitmap("able","Graphics/Pictures/Party/overlay_hp_back")
-        @hpbgsprite.addBitmap("fainted","Graphics/Pictures/Party/overlay_hp_back_faint")
-        @hpbgsprite.addBitmap("swap","Graphics/Pictures/Party/overlay_hp_back_swap")
+        @hpbgsprite.addBitmap("able",addLanguageSuffix("Graphics/Pictures/Party/overlay_hp_back"))
+        @hpbgsprite.addBitmap("fainted",addLanguageSuffix("Graphics/Pictures/Party/overlay_hp_back_faint"))
+        @hpbgsprite.addBitmap("swap",addLanguageSuffix("Graphics/Pictures/Party/overlay_hp_back_swap"))
         @ballsprite = ChangelingSprite.new(0,0,viewport)
         @ballsprite.z = self.z+1
         @ballsprite.addBitmap("desel","Graphics/Pictures/Party/icon_ball")
@@ -212,7 +260,7 @@ end
         @overlaysprite = BitmapSprite.new(Graphics.width,Graphics.height,viewport)
         @overlaysprite.z = self.z+4
         @hpbar    = AnimatedBitmap.new("Graphics/Pictures/Party/overlay_hp")
-        @statuses = AnimatedBitmap.new(_INTL("Graphics/Pictures/statuses"))
+        @statuses = AnimatedBitmap.new(addLanguageSuffix(("Graphics/Pictures/statuses")))
         @selected      = false
         @preselected   = false
         @switching     = false
@@ -412,7 +460,7 @@ end
           # Draw level text
           if !@pokemon.egg?
             pbDrawImagePositions(@overlaysprite.bitmap,[[
-               "Graphics/Pictures/Party/overlay_lv",20,70,0,0,22,14]])
+              addLanguageSuffix("Graphics/Pictures/Party/overlay_lv"),20,70,0,0,22,14]])
             pbSetSmallFont(@overlaysprite.bitmap)
             pbDrawTextPositions(@overlaysprite.bitmap,[
                [@pokemon.level.to_s,42,57,0,basecolor,shadowcolor]
@@ -720,9 +768,7 @@ end
               return @activecmd
             end
           elsif Input.trigger?(Input::SPECIAL)
-            pbFadeOutIn {
-                        PokemonPartyShowcase_Scene.new($Trainer.party)
-                    }
+            trainerShowcase($Trainer)
           end
         end
     end
@@ -1164,11 +1210,11 @@ def pbChoosePokemon(variableNumber,nameVarNumber,ableProc=nil,allowIneligible=fa
 		scene = PokemonParty_Scene.new
 		screen = PokemonPartyScreen.new(scene,$Trainer.party)
 		if ableProc
-		chosen=screen.pbChooseAblePokemon(ableProc,allowIneligible)
+		  chosen=screen.pbChooseAblePokemon(ableProc,allowIneligible)
 		else
-		screen.pbStartScene(_INTL("Choose a Pokémon."),false)
-		chosen = screen.pbChoosePokemon
-		screen.pbEndScene
+      screen.pbStartScene(_INTL("Choose a Pokémon."),false)
+      chosen = screen.pbChoosePokemon
+      screen.pbEndScene
 		end
 	}
 	pbSet(variableNumber,chosen)
