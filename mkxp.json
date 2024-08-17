@@ -360,6 +360,5 @@
     // "Game.rgssad", but specifying the executable name here
     // is a tiny bit less intrusive.
     //
-    "execName": "Project Chasm"
-
+    "execName": "Rogue Ranger"
 }
