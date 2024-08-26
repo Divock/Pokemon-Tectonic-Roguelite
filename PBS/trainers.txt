@@ -20,22 +20,316 @@ Pokemon = SLAKING,70
     Moves = TACKLE
     AbilityIndex = 1 # Truant
 #-------------------------------
-[BATTLEGIRL,Tester]
-Pokemon = SLAKING,70
-    Moves = TACKLE
-    AbilityIndex = 1 # Truant
-Pokemon = SLAKING,70
-    Moves = TACKLE
-    AbilityIndex = 1 # Truant
-Pokemon = SLAKING,70
-    Moves = TACKLE
-    AbilityIndex = 1 # Truant
-Pokemon = SLAKING,70
-    Moves = TACKLE
-    AbilityIndex = 1 # Truant
-Pokemon = SLAKING,70
-    Moves = TACKLE
-    AbilityIndex = 1 # Truant
-Pokemon = SLAKING,70
-    Moves = TACKLE
-    AbilityIndex = 1 # Truant
+[PSYCHIC_M3,Animated]
+Pokemon = DRAGONITE,70
+    AbilityIndex = 0 # Inner Focus
+Pokemon = MIMIKYU,70
+    AbilityIndex = 0 # Disguise
+Pokemon = PARASECT,70
+    AbilityIndex = 1 # Bad Dreams
+Pokemon = MAGNEZONE,70
+    AbilityIndex = 0 # Analytic
+Pokemon = GOLEM,70
+    AbilityIndex = 1 # Desert Armor
+Pokemon = DRAGONITE,70
+    AbilityIndex = 0 # Inner Focus
+#-------------------------------
+[SUPERNERD,Artillery]
+Pokemon = OCTILLERY,70
+    AbilityIndex = 0 # Juggernaut
+Pokemon = AGOLEM,70
+    AbilityIndex = 0 # Galvanize
+Pokemon = TOUCANNON,70
+    AbilityIndex = 0 # Nesting
+Pokemon = MEOWSTIC,70
+    AbilityIndex = 0 # Prankster
+Pokemon = MAGMORTAR,70
+    AbilityIndex = 0 # Mega Launcher
+Pokemon = FALINKS,70
+    AbilityIndex = 0 # Imperious
+#-------------------------------
+[COOLTRAINER_F,Assassin]
+Pokemon = ZANGOOSE,70
+    AbilityIndex = 1 # Rending Claws
+Pokemon = SANDSLASH,70
+    AbilityIndex = 0 # Sand Rush
+Pokemon = ASANDSLASH,70
+    AbilityIndex = 1 # Assault Spines
+Pokemon = SNEASLER,70
+    AbilityIndex = 1 # Frustrate
+Pokemon = WEAVILE,70
+    AbilityIndex = 0 # Inner Focus
+Pokemon = BARBARACLE,70
+    AbilityIndex = 1 # Steel Absorb
+#-------------------------------
+[RUINMANIAC,Bushwacker]
+Pokemon = GALVANTULA,70
+    AbilityIndex = 0 # Ocular
+Pokemon = QUAGSIRE,70
+    AbilityIndex = 1 # Water Absorb
+Pokemon = FLYGON,70
+    AbilityIndex = 0 # Desert Spirit
+Pokemon = GSTUNFISK,70
+    AbilityIndex = 1 # Deterrent
+Pokemon = WHIMSICOTT,70
+    AbilityIndex = 1 # Pure Force
+Pokemon = KOMALA,70
+    AbilityIndex = 0 # Comatose
+#-------------------------------
+[POKEMONRANGER_F,Caretaker]
+Pokemon = CONIFEAR,70
+    AbilityIndex = 1 # Frustrate
+Pokemon = ORANGURU,70
+    AbilityIndex = 0 # Inner Focus
+Pokemon = MEGANIUM,70
+    Moves = BREATHELIFE
+    AbilityIndex = 0 # Fae Veil
+Pokemon = HYMNUS,70
+    AbilityIndex = 0 # Levitate
+Pokemon = TEAMUJIN,70
+    AbilityIndex = 1 # Parental Bond
+Pokemon = KINGDRA,70
+    AbilityIndex = 1 # Gyre Spinner
+#-------------------------------
+[DANDY,Charmer]
+Pokemon = CLEFABLE,70
+    AbilityIndex = 0 # Magic Guard
+Pokemon = UMBREON,70
+    AbilityIndex = 0 # Malicious Glow
+Pokemon = MRMIME,70
+    AbilityIndex = 0 # Barrier Maker
+Pokemon = HLILLIGANT,70
+    AbilityIndex = 1 # Efflorescent
+Pokemon = NIBELONG,70
+    AbilityIndex = 0 # Long Odds
+Pokemon = WEAVILE,70
+    AbilityIndex = 0 # Inner Focus
+#-------------------------------
+[KIMONOGIRL,Deceiver]
+Pokemon = SUDOWOODO,70
+    AbilityIndex = 1 # Prankster
+Pokemon = MASQUERAIN,70
+    AbilityIndex = 0 # Hyper Speed
+Pokemon = DRIFBLIM,70
+    AbilityIndex = 1 # Drifting Mist
+Pokemon = LIEPARD,70
+    AbilityIndex = 0 # Dauntless
+Pokemon = AMOONGUSS,70
+    AbilityIndex = 0 # Regenerator
+Pokemon = DRAGALGE,70
+    AbilityIndex = 0 # Deterrent
+#-------------------------------
+[SCHOOLKID_F4,Fortune]
+Pokemon = CURSOLA,70
+    AbilityIndex = 1 # Perish Body
+Pokemon = GOTHITELLE,70
+    AbilityIndex = 0 # Moon Basking
+Pokemon = BLASFEMMIE,70
+    AbilityIndex = 1 # Hubris
+Pokemon = MINUN,70
+    AbilityIndex = 1 # Magic Shield
+Pokemon = MNOCTOWL,70
+    AbilityIndex = 1 # Winter Insulation
+Pokemon = GSTUNFISK,70
+    AbilityIndex = 1 # Deterrent
+#-------------------------------
+[GUITARIST3,Harmonic]
+Pokemon = EXPLOUD,70
+    AbilityIndex = 0 # Echo
+Pokemon = SAURENAID,70
+    AbilityIndex = 0 # Arctic Ariette
+Pokemon = KRICKETUNE,70
+    AbilityIndex = 0 # Fascinate
+Pokemon = MISMAGIUS,70
+    AbilityIndex = 0 # Snow Warning
+Pokemon = ARCLAMOR,70
+    AbilityIndex = 0 # Loud
+Pokemon = NOCTOWL,70
+    AbilityIndex = 1 # Fascinate
+#-------------------------------
+[WORKER5,Industrious]
+Pokemon = MACHAMP,70
+    AbilityIndex = 0 # Feel the Burn
+Pokemon = BEHEEYEM,70
+    AbilityIndex = 0 # Cold Calculation
+Pokemon = TORTERRA,70
+    AbilityIndex = 1 # Living Armor
+Pokemon = AMUK,70
+    AbilityIndex = 0 # Power of Alchemy
+Pokemon = TOWERPODA,70
+    AbilityIndex = 1 # High-rise
+Pokemon = SMEARGLE,70
+    AbilityIndex = 0 # Mental Block
+#-------------------------------
+[COOLTRAINER_M,Loyal]
+Pokemon = CHESNAUGHT,70
+    AbilityIndex = 0 # Intimidate
+Pokemon = FURRET,70
+    AbilityIndex = 0 # Hustle
+Pokemon = BLAZIKEN,70
+    AbilityIndex = 1 # Pecking Order
+Pokemon = GOLISOPOD,70
+    AbilityIndex = 1 # Emergency Exit
+Pokemon = ARAICHU,70
+    AbilityIndex = 0 # Speed Boost
+Pokemon = MAROMATISSE,70
+    AbilityIndex = 1 # Uncanny Luck
+#-------------------------------
+[HEXMANIAC,Mystic]
+Pokemon = ORICORIO,70
+    Form = 3 # Sensu Style Form
+    AbilityIndex = 0 # Dancer
+Pokemon = PAPELLUMEN,70
+    AbilityIndex = 0 # Fae Veil
+Pokemon = BELLOSSOM,70
+    AbilityIndex = 0 # Solar Power
+Pokemon = AMAROWAK,70
+    AbilityIndex = 1 # Ancestral Dance
+Pokemon = BOUFFALANT,70
+    AbilityIndex = 1 # Sap Sipper
+Pokemon = LUDICOLO,70
+    AbilityIndex = 0 # Fiesta
+#-------------------------------
+[LADY4,Noble]
+Pokemon = FORRETRESS,70
+    AbilityIndex = 1 # Weathered
+Pokemon = OMASTAR,70
+    AbilityIndex = 1 # Introvert
+Pokemon = MILOTIC,70
+    AbilityIndex = 0 # Dramatic Lighting
+Pokemon = JELLICENT,70
+    AbilityIndex = 1 # Sentry
+Pokemon = NIDOKING,70
+    AbilityIndex = 0 # Sheer Force
+Pokemon = MNINETALES,70
+    AbilityIndex = 0 # Gild
+    Item = UTILITYUMBRELLA
+#-------------------------------
+[OFFICEWORKER_M,Radiant]
+Pokemon = SUNFLORA,70
+    AbilityIndex = 0 # Simple
+Pokemon = GIGALITH,70
+    AbilityIndex = 0 # Solar Cell
+Pokemon = VOLCARONA,70
+    AbilityIndex = 1 # Dawnfall
+Pokemon = TOWERPODA,70
+    AbilityIndex = 0 # Stubborn
+Pokemon = AMUK,70
+    AbilityIndex = 1 # Poison Punish
+Pokemon = CONKELDURR,70
+    AbilityIndex = 0 # Expertise
+#-------------------------------
+[PUNKF,Scavenger]
+Pokemon = RATICATE,70
+    AbilityIndex = 0 # Filthy
+Pokemon = SKUNTANK,70
+    AbilityIndex = 1 # Pure Energy
+Pokemon = TOGEDEMARU,70
+    AbilityIndex = 0 # Plasma Globe
+Pokemon = BRELOOM,70
+    AbilityIndex = 0 # Technician
+Pokemon = UNFEZANT,70
+    AbilityIndex = 1 # Super Luck
+Pokemon = VESPIQUEN,70
+    AbilityIndex = 1 # Stressful
+#-------------------------------
+[SWIMMER_F2,Scourge]
+Pokemon = PALOSSAND,70
+    AbilityIndex = 1 # Sand Shroud
+Pokemon = SKARMORY,70
+    AbilityIndex = 1 # Weathered
+Pokemon = TYRANITAR,70
+    AbilityIndex = 1 # Stressful
+Pokemon = MTANGROWTH,70
+    AbilityIndex = 0 # Petrifying
+Pokemon = TOXAPEX,70
+    AbilityIndex = 1 # Regenerator
+Pokemon = DRAPION,70
+    AbilityIndex = 1 # Merciless
+#-------------------------------
+[BLACKBELT,Scrapper]
+Pokemon = HITMONLEE,70
+    AbilityIndex = 1 # Kickback
+Pokemon = MAROWAK,70
+    Ability = ROCKHEAD
+    AbilityIndex = 0 # Rock Head
+Pokemon = ELECTIVIRE,70
+    Ability = ADRENALINERUSH
+    AbilityIndex = 1 # Adrenaline Rush
+Pokemon = TYPHLOSION,70
+    AbilityIndex = 0 # Brisk
+Pokemon = BEAUTIFLY,70
+    Ability = ENGORGE
+    AbilityIndex = 0 # Gorging
+Pokemon = SKUNTANK,70
+    AbilityIndex = 1 # Pure Energy
+#-------------------------------
+[REPORTER,Serene]
+Pokemon = CONIFEAR,70
+    AbilityIndex = 1 # Frustrate
+Pokemon = MNOCTOWL,70
+    AbilityIndex = 0 # Sentry
+Pokemon = ARCTOZOLT,70
+    AbilityIndex = 1 # Adrenaline Rush
+Pokemon = CHIMECHO,70
+    AbilityIndex = 0 # Brisk
+Pokemon = CRADILY,70
+    AbilityIndex = 0 # Rooted
+Pokemon = PERRSERKER,70
+    AbilityIndex = 0 # Slush Rush
+#-------------------------------
+[RANCHER,Stampede]
+Pokemon = GRIMMSNARL,70
+    AbilityIndex = 1 # Ruinous
+Pokemon = ZEBSTRIKA,70
+    AbilityIndex = 1 # Reckless
+Pokemon = DODRIO,70
+    AbilityIndex = 0 # Fluster Flock
+Pokemon = DONPHAN,70
+    AbilityIndex = 0 # Speed Boost
+Pokemon = GRAPIDASH,70
+    AbilityIndex = 0 # Joyous Sorrow
+Pokemon = ANNIHILAPE,70
+    AbilityIndex = 1 # Dominating
+#-------------------------------
+[SCIENTIST_F3,Tactician]
+Pokemon = HYDREIGON,70
+    AbilityIndex = 1 # Sun Eater
+Pokemon = WHISCASH,70
+    AbilityIndex = 0 # Mental Block
+Pokemon = EMPOLEON,70
+    AbilityIndex = 1 # Self-Sufficient
+Pokemon = REUNICLUS,70
+    AbilityIndex = 0 # Extremophile
+Pokemon = ALAKAZAM,70
+    AbilityIndex = 0 # Warping Effect
+Pokemon = ILLUMISE,70
+    AbilityIndex = 1 # Fascinate
+#-------------------------------
+[PILOT,Tyrannical]
+Pokemon = FEAROW,70
+    AbilityIndex = 1 # Territorial
+Pokemon = TYRANTRUM,70
+    AbilityIndex = 1 # Rock Head
+Pokemon = BLASTOISE,70
+    AbilityIndex = 1 # Mega Launcher
+Pokemon = URSALUNA,70
+    AbilityIndex = 0 # Moon Basking
+Pokemon = WAILORD,70
+    AbilityIndex = 1 # Gargantuan
+Pokemon = ELDEGOSS,70
+    AbilityIndex = 0 # Cotton Down
+#-------------------------------
+[STRIKER,Warrior]
+Pokemon = MZANGOOSE,70
+    AbilityIndex = 0 # Served Cold
+Pokemon = ACCELGOR,70
+    AbilityIndex = 1 # Afterimage
+Pokemon = TALONFLAME,70
+    AbilityIndex = 1 # Gale Wings
+Pokemon = ROSERADE,70
+    AbilityIndex = 0 # Swordplay
+Pokemon = KABUTOPS,70
+    AbilityIndex = 1 # Unafraid
+Pokemon = MIENSHAO,70
+    AbilityIndex = 1 # Natural Cure

@@ -9,9 +9,7 @@ LegendaryAvatarBattleBGM = Battle avatar legendary.ogg
 WildVictoryME = VICTORYWILDPOKEMONHGSS.ogg
 TrainerVictoryME = VICTORYTRAINERDPPT.ogg
 BicycleBGM = BICYCLE2.ogg
-PlayerA = POKEMONTRAINER_Masculine,masc_walk,masc_bike,masc_surf,masc_run,masc_surf,masc_fish_offset,masc_fish_offset
-PlayerB = POKEMONTRAINER_Feminine,girl_walk,girl_bike,girl_surf,girl_run,girl_surf,fem_fish_offset,fem_fish_offset
-PlayerC = POKEMONTRAINER_Androgynous,andro_walk,andro_bike,andro_surf,andro_run,andro_surf,andro_fish_offset,andro_fish_offset
+PlayerA = POKEMONTRAINER_Girl,girl_walk,girl_bike,girl_surf,girl_run,girl_surf,girl_surf_offset,girl_fish_offset
 #-------------------------------
 [001]
 # Intro - Alpha
