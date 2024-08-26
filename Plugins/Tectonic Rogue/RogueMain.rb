@@ -13,10 +13,6 @@ VALID_FORMS = [
 ]
 
 FLOOR_MAP_IDS = [
-    425,
-    426,
-    427,
-    428,
 ]
 
 STARTING_TRAINER_HEALTH = 20
@@ -53,6 +49,8 @@ class TectonicRogueGameMode
         @active = true
         loadValidSpecies
 
+        setGlobals
+
         $TectonicRogue.moveToNextFloor
 
         chooseStartingPokemon
@@ -64,6 +62,12 @@ class TectonicRogueGameMode
         pbReceiveItem(:SITRUSBERRY)
         pbReceiveItem(:STRENGTHHERB)
         pbReceiveItem(:INTELLECTHERB)
+    end
+
+    def setGlobals
+        $Trainer.has_running_shoes = true
+        setLevelCap(70,false)
+        setGlobalSwitch(33) # No money lost in battles
     end
 
     def active?
