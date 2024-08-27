@@ -13,15 +13,17 @@ VALID_FORMS = [
 ]
 
 STARTING_BLOCK_MAP_IDS = [
-    21
+    21,
+    28,
 ]
 
 CONTENT_BLOCK_MAP_IDS = [
-    27
+    27,
 ]
 
 EXIT_BLOCK_MAP_IDS = [
-    24
+    24,
+    29,
 ]
 
 STARTING_TRAINER_HEALTH = 20
@@ -39,7 +41,7 @@ class TectonicRogueGameMode
     def initialize
         @active = false
         @currentFloorTrainers = []
-        @currentFloorMapID = -1
+        @currentFloorMaps = []
         @currentFloorDepth = 0
         @trainerHealth = STARTING_TRAINER_HEALTH
     end
@@ -62,8 +64,10 @@ class TectonicRogueGameMode
 
         $TectonicRogue.moveToNextFloor
 
-        chooseStartingPokemon
-        giveStartingItems
+        unless debugControl
+            chooseStartingPokemon
+            giveStartingItems
+        end
     end
 
     def giveStartingItems
@@ -115,9 +119,11 @@ class TectonicRogueGameMode
     ##############################################################
 
     def chooseStartingPokemon
-        pbMessage(_INTL("Choose your starting Pokemon."))
+        pbMessage(_INTL("Choose your first Pokemon."))
         chooseGiftPokemon(2)
+        pbMessage(_INTL("Choose your second Pokemon."))
         chooseGiftPokemon(3)
+        pbMessage(_INTL("Choose your third Pokemon."))
         chooseGiftPokemon(4)
     end
 
@@ -248,9 +254,8 @@ class TectonicRogueGameMode
 
         pbSEPlay("Battle flee")
         pbCaveEntrance
-        nextFloorMapID = chooseNextFloor
+        nextFloorMapID = generateNewFloor
         transferPlayerToSpawn(nextFloorMapID)
-        @currentFloorMapID = nextFloorMapID
     end
 
     def transferPlayerToSpawn(mapID)
@@ -275,14 +280,124 @@ class TectonicRogueGameMode
     end
 
     def getRandomStartingBlockMapID
-        return STARTING_BLOCK_MAP_IDS.sample
+        blockID = nil
+        while blockID.nil? || @currentFloorMaps.include?(blockID)
+            blockID = STARTING_BLOCK_MAP_IDS.sample
+        end
+        return blockID
+    end
+
+    def getRandomContentBlockMapID
+        blockID = nil
+        while blockID.nil? || @currentFloorMaps.include?(blockID)
+            blockID = CONTENT_BLOCK_MAP_IDS.sample
+        end
+        return blockID
+    end
+
+    def getRandomExitBlockMapID
+        blockID = nil
+        while blockID.nil? || @currentFloorMaps.include?(blockID)
+            blockID = EXIT_BLOCK_MAP_IDS.sample
+        end
+        return blockID
+    end
+
+    ##############################################################
+    # Floor generation
+    ##############################################################
+    def floorGenerated?
+        return @currentFloorMaps && !@currentFloorMaps.empty?
+    end
+
+    def floorLoaded?
+        return MapFactoryHelper.connectionsLoaded?
+    end
+
+    def generateNewFloor
+        @currentFloorMaps = []
+
+        startingBlockID = chooseNextFloor
+        exitBlockID = getRandomExitBlockMapID
+        @currentFloorMaps.push(startingBlockID)
+        @currentFloorMaps.push(exitBlockID)
+
+        loadCurrentFloor
+
+        return startingBlockID
+    end
+
+    def loadCurrentFloor
+        startingBlockID = @currentFloorMaps[0]
+        exitBlockID = @currentFloorMaps[1]
+
+        MapFactoryHelper.clearConnections
+        MapFactoryHelper.addMapConnection(startingBlockID,exitBlockID,"E")
     end
 end
 
-##############################################################
-# Floor generation
-##############################################################
+module MapFactoryHelper
+    def self.clearConnections
+        @@MapConnections = []
+    end
+
+    def self.connectionsLoaded?
+        return @@MapConnections && !@@MapConnections.empty?
+    end
+
+    def self.addMapConnection(mapID_A,mapID_B,directionA)
+        directionB = nil
+        case directionA
+        when "N"
+            directionB = "S"
+        when "S"
+            directionB = "N"
+        when "E"
+            directionB = "W"
+        when "W"
+            directionB = "E"
+        end
+
+        connectionInfo = [mapID_A,directionA,1,mapID_B,directionB,1]
+
+        # Convert first map's edge and coordinate to pair of coordinates
+        edge = getMapEdge(connectionInfo[0], connectionInfo[1])
+        case connectionInfo[1]
+            when "N", "S"
+                connectionInfo[1] = connectionInfo[2]
+                connectionInfo[2] = edge
+            when "E", "W"
+                connectionInfo[1] = edge
+        end
+        # Convert second map's edge and coordinate to pair of coordinates
+        edge = getMapEdge(connectionInfo[3], connectionInfo[4])
+        case connectionInfo[4]
+            when "N", "S"
+                connectionInfo[4] = connectionInfo[5]
+                connectionInfo[5] = edge
+            when "E", "W"
+                connectionInfo[4] = edge
+        end
+
+        # Add connection to arrays for both maps
+        @@MapConnections[mapID_A] = [] unless @@MapConnections[mapID_A]
+        @@MapConnections[mapID_A].push(connectionInfo)
+        @@MapConnections[mapID_B] = [] unless @@MapConnections[mapID_B]
+        @@MapConnections[mapID_B].push(connectionInfo)
+    end
+end
+
+# Reload the map connections if loading in from a save file
 Events.onMapChange += proc { |_sender,_e|
+    next if $TectonicRogue.floorLoaded?
+    next unless $TectonicRogue.floorGenerated?
+    $TectonicRogue.loadCurrentFloor
+}
+
+##############################################################
+# Event generation
+##############################################################
+Events.onMapSceneChange += proc { |_sender,_e|
     next unless rogueModeActive?
     next if $TectonicRogue.trainersAssigned?
     mapID = $game_map.map_id

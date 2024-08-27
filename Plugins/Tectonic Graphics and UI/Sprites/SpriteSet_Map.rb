@@ -151,10 +151,7 @@ class Spriteset_Map
         sprite.update
       end
   
-      if self.map != $game_map
-        $game_screen.resetWeather
-        echoln("Resetting weather from the spriteset map")
-      end
+      $game_screen.resetWeather if self.map != $game_map
   
       $game_screen.updateWeather(@weather)
       

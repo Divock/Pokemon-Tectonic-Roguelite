@@ -409,5 +409,5 @@ module Settings
         ]
     end
 
-    ALL_MAPS_SNAP_EDGES = true
+    ALL_MAPS_SNAP_EDGES = false
 end
