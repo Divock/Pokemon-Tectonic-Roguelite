@@ -351,10 +351,15 @@ class Game_Map
         end
     end
 
+    def snap_edges?
+        return true if Settings::ALL_MAPS_SNAP_EDGES
+        return GameData::MapMetadata.exists?(map_id) && GameData::MapMetadata.get(map_id).snap_edges
+    end
+
     def display_x=(value)
         return if @display_x == value
         @display_x = value
-        if GameData::MapMetadata.exists?(map_id) && GameData::MapMetadata.get(map_id).snap_edges
+        if snap_edges?
             max_x = (width - Graphics.width * 1.0 / TILE_WIDTH) * REAL_RES_X
             @display_x = [0, [@display_x, max_x].min].max
         end
@@ -364,7 +369,7 @@ class Game_Map
     def display_y=(value)
         return if @display_y == value
         @display_y = value
-        if GameData::MapMetadata.exists?(map_id) && GameData::MapMetadata.get(map_id).snap_edges
+        if snap_edges?
             max_y = (height - Graphics.height * 1.0 / TILE_HEIGHT) * REAL_RES_Y
             @display_y = [0, [@display_y, max_y].min].max
         end

@@ -12,7 +12,16 @@ VALID_FORMS = [
     [:SAWSBUCK,3],
 ]
 
-FLOOR_MAP_IDS = [
+STARTING_BLOCK_MAP_IDS = [
+    21
+]
+
+CONTENT_BLOCK_MAP_IDS = [
+    27
+]
+
+EXIT_BLOCK_MAP_IDS = [
+    24
 ]
 
 STARTING_TRAINER_HEALTH = 20
@@ -40,7 +49,7 @@ class TectonicRogueGameMode
         GameData::Species.each do |speciesData|
             next if speciesData.form != 0 && !VALID_FORMS.include?([speciesData.id,speciesData.form])
             next unless speciesData.get_evolutions(true).empty?
-            next if isLegendary?(speciesData.species)
+            next if speciesData.isLegendary?
             @speciesForms.push([speciesData.id,speciesData.form])
         end
     end
@@ -106,6 +115,7 @@ class TectonicRogueGameMode
     ##############################################################
 
     def chooseStartingPokemon
+        pbMessage(_INTL("Choose your starting Pokemon."))
         chooseGiftPokemon(2)
         chooseGiftPokemon(3)
         chooseGiftPokemon(4)
@@ -239,20 +249,33 @@ class TectonicRogueGameMode
         pbSEPlay("Battle flee")
         pbCaveEntrance
         nextFloorMapID = chooseNextFloor
-        transferPlayerToEvent(2,Up,nextFloorMapID)
+        transferPlayerToSpawn(nextFloorMapID)
         @currentFloorMapID = nextFloorMapID
+    end
+
+    def transferPlayerToSpawn(mapID)
+        mapData = Compiler::MapData.new
+		map = mapData.getMap(mapID)
+        spawningEvent = nil
+        for event in map.events.values
+            next unless event.name.include?("spawnpoint")
+            spawningEvent = event
+            break
+        end
+        raise _INTL("Could not find valid spawn point for map {1}!",mapID) unless spawningEvent
+        transferPlayerToEvent(spawningEvent.id,Up,mapID)
     end
 
     def chooseNextFloor
         newFloor = nil
         while newFloor.nil? || newFloor == @currentFloorMapID
-            newFloor = getRandomFloorMapID
+            newFloor = getRandomStartingBlockMapID
         end
         return newFloor
     end
 
-    def getRandomFloorMapID
-        return FLOOR_MAP_IDS.sample
+    def getRandomStartingBlockMapID
+        return STARTING_BLOCK_MAP_IDS.sample
     end
 end
 
@@ -327,8 +350,16 @@ def enterRogueMode
     $TectonicRogue.beginRun
 end
 
+def ladderInteraction
+    promptMoveToNextFloor
+end
+
 def promptMoveToNextFloor
-    $TectonicRogue.moveToNextFloor if pbConfirmMessage(_INTL("Drop down to the next floor?"))
+    if pbConfirmMessage(_INTL("Drop down to the next floor?"))
+        $TectonicRogue.moveToNextFloor
+    else
+        forcePlayerBackwards
+    end
 end
 
 def reloadValidSpecies

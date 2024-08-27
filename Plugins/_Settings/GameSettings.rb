@@ -408,4 +408,6 @@ module Settings
             _INTL("Generation"),
         ]
     end
+
+    ALL_MAPS_SNAP_EDGES = true
 end
