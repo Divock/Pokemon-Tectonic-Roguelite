@@ -427,7 +427,7 @@ module GameData
                     SURGINGSTRIKES
                 ]
             elsif @species == :NECROZMA
-                [
+                return [
                     nil,
                     :SUNSTEELSTRIKE, # Dusk Mane (with Solgaleo) (form 1)
                     :MOONGEISTBEAM, # Dawn Wings (with Lunala) (form 2)
@@ -504,6 +504,10 @@ module GameData
 
         def isLegendary?
             return @flags.include?("Legendary")
+        end
+
+        def isTest?
+            return @flags.include?("Test")
         end
     end
 end

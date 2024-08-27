@@ -105,7 +105,7 @@ class MoveDex_Entry_Scene
             learningEntry[1]
         }
         @levelUpLearnables.reject! { |learningEntry|
-            !speciesInfoViewable?(learningEntry[1])
+            !speciesInfoViewable?(learningEntry[0])
         }
     end
 
@@ -390,7 +390,7 @@ class MoveDex_Entry_Scene
         shadow = MessageConfig.pbDefaultTextShadowColor
 
         @sprites["scroll_arrow_up"].visible = @scroll > 0
-        @sprites["scroll_arrow_down"].visible = @scroll < @moveDetailsText.length - @detailLinesToShow + 1
+        @sprites["scroll_arrow_down"].visible = @scroll < @moveDetailsText.length - @detailLinesToShow - 1
 
         if @moveDetailsText.empty?
             statusLabel = _INTL("None")
@@ -826,6 +826,7 @@ end
 def moveInfoViewable?(moveID)
     return true if $DEBUG
     moveData = GameData::Move.get(moveID)
+    return false if moveData.testMove?
     return true unless moveData.is_signature?
     signatureSpecies = moveData.signature_of
     return true unless GameData::Species.get(signatureSpecies).isLegendary?
