@@ -283,6 +283,7 @@ def pbBikeCheck
     end
     return true
   end
+  return true if Settings::ALL_MAPS_BICYCLE_ALLOWED
   if !map_metadata || (!map_metadata.can_bicycle && !map_metadata.outdoor_map)
     pbMessage(_INTL("Can't use that here."))
     return false

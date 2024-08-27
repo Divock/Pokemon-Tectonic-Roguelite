@@ -38,6 +38,7 @@ end
 
 def pbCanUseBike?(map_id)
     map_metadata = GameData::MapMetadata.try_get(map_id)
+    return true if Settings::ALL_MAPS_BICYCLE_ALLOWED
     return false if !map_metadata
     return true if map_metadata.always_bicycle
     val = map_metadata.can_bicycle || map_metadata.outdoor_map

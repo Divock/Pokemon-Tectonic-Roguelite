@@ -223,9 +223,9 @@ existingIndex)
 	
 		# Build the commands
 		commands[cmdRename = commands.length]       	= _INTL("Rename")
-		commands[cmdStyle = commands.length]        	= _INTL("Set Style") if pbHasItem?(:STYLINGKIT) || rogueModeActive?
+		commands[cmdStyle = commands.length]        	= _INTL("Set Style") if pbHasItem?(:STYLINGKIT)
 		commands[cmdRelearn = commands.length]      	= _INTL("Relearn Moves") if rogueModeActive?
-		commands[cmdSwitchAbility = commands.length] 	= _INTL("Switch Ability") if rogueModeActive?
+		commands[cmdSwitchAbility = commands.length] 	= _INTL("Switch Ability") if rogueModeActive? && @pkmn.canSwitchAbility?
 		newspecies = @pkmn.check_evolution_on_level_up
 		commands[cmdEvolve = commands.length]       	= _INTL("Evolve") if newspecies
 		commands[commands.length]                   	= _INTL("Cancel")

@@ -131,8 +131,8 @@ module Settings
       return _INTL("Bill")
     end
     # The number of boxes in Pokémon storage.
-    NUM_STORAGE_BOXES = 40
-    NUM_DONATION_BOXES = 5
+    NUM_STORAGE_BOXES = 1
+    NUM_DONATION_BOXES = 0
   
     #=============================================================================
   
@@ -410,4 +410,5 @@ module Settings
     end
 
     ALL_MAPS_SNAP_EDGES = false
+    ALL_MAPS_BICYCLE_ALLOWED = true
 end

@@ -556,7 +556,7 @@ class Pokemon
 
     def canSwitchAbility?(showMessage = false)
         abil1,abil2 = getPossibleAbilities
-        if abil1.nil? || abil2.nil? || pkmn.isSpecies?(:ZYGARDE)
+        if abil1.nil? || abil2.nil? || isSpecies?(:ZYGARDE)
             return false
         end
         return true
@@ -565,7 +565,7 @@ class Pokemon
     def switchAbility(showMessage = true)
         newabilindex = (ability_index + 1) % 2
         abil1,abil2 = getPossibleAbilities
-        newabil = GameData::Ability.get((newabilindex==0) ? abil1 : abil2)
+        newabil = GameData::Ability.get((newabilindex == 0) ? abil1 : abil2)
         newabilname = newabil.name
         self.ability_index = newabilindex
         pbMessage(_INTL("{1}'s Ability changed to {2}!",name,newabilname)) if showMessage

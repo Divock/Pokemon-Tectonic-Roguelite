@@ -19,6 +19,7 @@ STARTING_BLOCK_MAP_IDS = [
 
 CONTENT_BLOCK_MAP_IDS = [
     27,
+    30,
 ]
 
 EXIT_BLOCK_MAP_IDS = [
@@ -33,6 +34,7 @@ STARTING_TRAINER_HEALTH = 20
 ##############################################################
 class TectonicRogueGameMode
     attr_reader :speciesForms
+    attr_reader :floorNumber
 
     ##############################################################
     # Initialization
@@ -42,7 +44,7 @@ class TectonicRogueGameMode
         @active = false
         @currentFloorTrainers = []
         @currentFloorMaps = []
-        @currentFloorDepth = 0
+        @floorNumber = 0
         @trainerHealth = STARTING_TRAINER_HEALTH
     end
     
@@ -230,13 +232,14 @@ class TectonicRogueGameMode
         trainer = getTrainerByLevelID(idNumber)
         
         setBattleRule("canLose")
+        setBattleRule("double")
         setBattleRule("lanetargeting")
         setBattleRule("doubleshift")
         pbTrainerBattleCore(trainer)
     end
 
     def floorDifficulty
-        return 1 + (@currentFloorDepth / 3)
+        return 1 + (@floorNumber / 3)
     end
 
     def getRandomTrainerPartySize
@@ -252,10 +255,14 @@ class TectonicRogueGameMode
     ##############################################################
     def moveToNextFloor
         resetFloorTrainers
-        @currentFloorDepth += 1
+        resetMapState
+
+        @floorNumber += 1
+        $rogue_floor_displayed = false
 
         pbSEPlay("Battle flee")
         pbCaveEntrance
+        
         nextFloorMapID = generateNewFloor
         transferPlayerToSpawn(nextFloorMapID)
     end
@@ -305,6 +312,20 @@ class TectonicRogueGameMode
         return blockID
     end
 
+    def resetMapState
+        mapData = Compiler::MapData.new
+
+        eachMapIDOnFloor do |mapID|
+            map = mapData.getMap(mapID)
+            for key in map.events.keys
+                echoln(_INTL("Resetting the state of event {1} on map {2}",key,mapID))
+                ['A','B','C','D'].each do |switch|
+                    $game_self_switches[[mapID, key, switch]] = false
+                end
+            end
+        end
+    end
+
     ##############################################################
     # Floor generation
     ##############################################################
@@ -319,9 +340,11 @@ class TectonicRogueGameMode
     def generateNewFloor
         @currentFloorMaps = []
 
-        startingBlockID = chooseNextFloor
+        startingBlockID = getRandomStartingBlockMapID
+        contentBlockID = getRandomContentBlockMapID
         exitBlockID = getRandomExitBlockMapID
         @currentFloorMaps.push(startingBlockID)
+        @currentFloorMaps.push(contentBlockID)
         @currentFloorMaps.push(exitBlockID)
 
         loadCurrentFloor
@@ -330,11 +353,25 @@ class TectonicRogueGameMode
     end
 
     def loadCurrentFloor
-        startingBlockID = @currentFloorMaps[0]
-        exitBlockID = @currentFloorMaps[1]
-
         MapFactoryHelper.clearConnections
-        MapFactoryHelper.addMapConnection(startingBlockID,exitBlockID,"E")
+        for index in 0...@currentFloorMaps.length-1
+            mapID_A = @currentFloorMaps[index]
+            mapID_B = @currentFloorMaps[index + 1]
+            MapFactoryHelper.addMapConnection(mapID_A,mapID_B,"E")
+        end
+    end
+
+    def eachMapIDOnFloor
+        @currentFloorMaps.each do |mapID|
+            yield mapID
+        end
+    end
+
+    ##############################################################
+    # Miscellaneous
+    ##############################################################
+    def dungeonName
+        return _INTL("Prototype Dungeon")
     end
 end
 
@@ -413,7 +450,7 @@ Events.onMapSceneChange += proc { |_sender,_e|
 
         # Construct the first page, in which the battle takes place
         firstPage = RPG::Event::Page.new
-		firstPage.graphic.character_name = trainer.trainer_type.to_s
+		firstPage.graphic.character_name = "Trainers/" + trainer.trainer_type.to_s
         firstPage.graphic.direction = event.event.pages[0].graphic.direction
 		firstPage.trigger = 2 # event touch
 		firstPage.list = []
@@ -450,6 +487,24 @@ Events.onMapSceneChange += proc { |_sender,_e|
             followerEvent.refresh
         end
     end
+}
+
+##############################################################
+# Show dungeon info
+##############################################################
+$rogue_floor_displayed = false
+
+Events.onMapSceneChange += proc { |_sender, e|
+	scene      = e[0]
+	mapChanged = e[1]
+	next if !scene || !scene.spriteset
+	next unless rogueModeActive?
+    next if $rogue_floor_displayed
+	$PokEstate.load_estate_box
+	boxName = $PokemonStorage[$PokEstate.estate_box].name
+	label = _INTL("{1}, Floor {2}",$TectonicRogue.dungeonName,$TectonicRogue.floorNumber)
+	scene.spriteset.addUserSprite(LocationWindow.new(label))
+    $rogue_floor_displayed = true
 }
 
 ##############################################################

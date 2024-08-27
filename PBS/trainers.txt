@@ -186,7 +186,7 @@ Pokemon = BELLOSSOM,70
 Pokemon = AMAROWAK,70
     AbilityIndex = 1 # Ancestral Dance
 Pokemon = BOUFFALANT,70
-    AbilityIndex = 1 # Sap Sipper
+    AbilityIndex = 1 # Groovy
 Pokemon = LUDICOLO,70
     AbilityIndex = 0 # Fiesta
 #-------------------------------
