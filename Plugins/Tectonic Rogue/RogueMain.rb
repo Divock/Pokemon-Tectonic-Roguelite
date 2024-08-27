@@ -230,6 +230,8 @@ class TectonicRogueGameMode
         trainer = getTrainerByLevelID(idNumber)
         
         setBattleRule("canLose")
+        setBattleRule("lanetargeting")
+        setBattleRule("doubleshift")
         pbTrainerBattleCore(trainer)
     end
 
