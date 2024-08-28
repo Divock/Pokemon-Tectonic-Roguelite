@@ -24,13 +24,12 @@ STARTING_TRAINER_HEALTH = 20
 ##############################################################
 # Load blocks
 ##############################################################
-$blocks_loaded = false
-$starting_block_map_ids = []
-$content_block_map_ids = []
-$exit_block_map_ids = []
+$starting_blocks = []
+$content_blocks = []
+$exit_blocks = []
 
 def loadBlockMapIDs
-    mapInfos = pbLoadMapInfos
+    mapInfos = load_data("Data/MapInfos.rxdata")
     mapInfos.each do |infoEntry|
         mapID = infoEntry[0]
         mapInfo = infoEntry[1]
@@ -38,17 +37,37 @@ def loadBlockMapIDs
 
         case mapInfo.parent_id
         when STARTING_BLOCKS_CATEGORY_MAP_ID
-            $starting_block_map_ids.push(mapID)
-            echoln("Loaded starting block: #{mapID}")
+            block_type = :start
         when CONTENT_BLOCK_CATEGORY_MAP_ID
-            $content_block_map_ids.push(mapID)
-            echoln("Loaded content block: #{mapID}")
+            block_type = :content
         when EXIT_BLOCK_CATEGORY_MAP_ID
-            $exit_block_map_ids.push(mapID)
-            echoln("Loaded exit block: #{mapID}")
+            block_type = :exit
+        end
+
+        next if block_type.nil?
+
+        mapName = mapInfo.name
+        match = mapName.match(/\[(.+)\]/)
+        unless match
+            raise _INTL("Map {1} (2) has no name metadata! Define its accessible directions inside square brackets.", mapName, mapID)
+        end
+
+        mapMetadataString = match[1]
+
+        block = LevelBlock.new(mapID, mapName, block_type, mapMetadataString)
+
+        case block_type
+        when :start
+            $starting_blocks << block
+        when :content
+            $content_blocks << block
+        when :exit
+            $exit_blocks << block
         end
     end
 end
+
+loadBlockMapIDs # Experimental early call
 
 ##############################################################
 # Game mode class
@@ -56,6 +75,8 @@ end
 class TectonicRogueGameMode
     attr_reader :speciesForms
     attr_reader :floorNumber
+    attr_reader :blockConnections
+    
 
     ##############################################################
     # Initialization
@@ -64,7 +85,8 @@ class TectonicRogueGameMode
     def initialize
         @active = false
         @currentFloorTrainers = []
-        @currentFloorMaps = []
+        @blockConnections = []
+        @floorBlocks = []
         @floorNumber = 0
         @trainerHealth = STARTING_TRAINER_HEALTH
     end
@@ -284,8 +306,8 @@ class TectonicRogueGameMode
         pbSEPlay("Battle flee")
         pbCaveEntrance
         
-        nextFloorMapID = generateNewFloor
-        transferPlayerToSpawn(nextFloorMapID)
+        startingBlock = generateNewFloor
+        transferPlayerToSpawn(startingBlock.map_id)
     end
 
     def transferPlayerToSpawn(mapID)
@@ -299,30 +321,6 @@ class TectonicRogueGameMode
         end
         raise _INTL("Could not find valid spawn point for map {1}!",mapID) unless spawningEvent
         transferPlayerToEvent(spawningEvent.id,Up,mapID)
-    end
-
-    def getRandomStartingBlockMapID
-        blockID = nil
-        while blockID.nil? || @currentFloorMaps.include?(blockID)
-            blockID = $starting_block_map_ids.sample
-        end
-        return blockID
-    end
-
-    def getRandomContentBlockMapID
-        blockID = nil
-        while blockID.nil? || @currentFloorMaps.include?(blockID)
-            blockID = $content_block_map_ids.sample
-        end
-        return blockID
-    end
-
-    def getRandomExitBlockMapID
-        blockID = nil
-        while blockID.nil? || @currentFloorMaps.include?(blockID)
-            blockID = $exit_block_map_ids.sample
-        end
-        return blockID
     end
 
     def resetMapState
@@ -343,43 +341,121 @@ class TectonicRogueGameMode
     # Floor generation
     ##############################################################
     def floorGenerated?
-        return @currentFloorMaps && !@currentFloorMaps.empty?
+        return @blockConnections && !@blockConnections.empty?
     end
 
     def floorLoaded?
         return MapFactoryHelper.connectionsLoaded?
     end
 
+    def resetFloor
+        @floorBlocks = []
+        @blockConnections = []
+    end
+
     def generateNewFloor
-        loadBlockMapIDs unless $blocks_loaded
+        oldFloorBlocks = @floorBlocks
+        
+        resetFloor
 
-        @currentFloorMaps = []
+        # Generate the starting block
+        startingBlock,nextDir = selectNewStartingBlock(oldFloorBlocks)
+        @floorBlocks.push(startingBlock)
 
-        startingBlockID = getRandomStartingBlockMapID
-        contentBlockID = getRandomContentBlockMapID
-        exitBlockID = getRandomExitBlockMapID
-        @currentFloorMaps.push(startingBlockID)
-        @currentFloorMaps.push(contentBlockID)
-        @currentFloorMaps.push(exitBlockID)
+        previousBlock = startingBlock
+
+        # Generate the content block
+        contentBlocksThisFloor.times do |i|
+            nextContentBlock,connectionDir,nextDir = selectNewContentBlock([nextDir],oldFloorBlocks)
+            @floorBlocks.push(startingBlock)
+            @blockConnections.push([previousBlock,nextContentBlock,connectionDir])
+
+            previousBlock = nextContentBlock
+        end
+
+        # Generate the exit block
+        exitBlock,connectionDir = selectNewExitBlock([nextDir],oldFloorBlocks)
+        @blockConnections.push([previousBlock,exitBlock,connectionDir])
 
         loadCurrentFloor
 
-        return startingBlockID
+        return startingBlock
+    end
+
+    def contentBlocksThisFloor
+        return floorDifficulty
     end
 
     def loadCurrentFloor
         MapFactoryHelper.clearConnections
-        for index in 0...@currentFloorMaps.length-1
-            mapID_A = @currentFloorMaps[index]
-            mapID_B = @currentFloorMaps[index + 1]
-            MapFactoryHelper.addMapConnection(mapID_A,mapID_B,"E")
+        @blockConnections.each do |blockConnection|
+            mapID_A = blockConnection[0].map_id
+            mapID_B = blockConnection[1].map_id
+            direction = blockConnection[2]
+            connectionChar = getConnectionCharForDir(direction)
+            MapFactoryHelper.addMapConnection(mapID_A,mapID_B,connectionChar)
         end
     end
 
     def eachMapIDOnFloor
-        @currentFloorMaps.each do |mapID|
-            yield mapID
+        @floorBlocks.each do |block|
+            yield block.map_id
         end
+    end
+
+    def allDirs
+        return [:north, :south, :east, :west]
+    end
+
+    def getConnectionCharForDir(dir)
+        case dir
+        when :north
+            return "N"
+        when :south
+            return "S"
+        when :east
+            return "E"
+        when :west
+            return "W"
+        end
+    end
+
+    def getValidBlocks(blockArray = [], compatibleDirs = [], mapsToAvoid = [])
+        validBlocks = []
+        blockArray.each do |block|
+            next if mapsToAvoid.include?(block.map_id)
+            next unless block.hasAnyDir?(compatibleDirs)
+            validBlocks.push(block)
+        end
+        return validBlocks
+    end
+
+    def selectNewStartingBlock(mapsToAvoid = [])
+        validBlocks = getValidBlocks($starting_blocks, allDirs, mapsToAvoid)
+        chosenBlock = validBlocks.sample
+
+        nextDir = chosenBlock.getRandomOtherDirection
+
+        return chosenBlock,nextDir
+    end
+
+    def selectNewContentBlock(compatibleDirs = [], mapsToAvoid = [])
+        validBlocks = getValidBlocks($content_blocks, compatibleDirs, mapsToAvoid)
+        chosenBlock = validBlocks.sample
+
+        connectionDir = chosenBlock.getRandomAllowedDirection(compatibleDirs)
+        nextDir = chosenBlock.getRandomOtherDirection([connectionDir])
+
+        return chosenBlock,connectionDir,nextDir
+    end
+
+    def selectNewExitBlock(compatibleDirs = [], mapsToAvoid = [])
+        validBlocks = getValidBlocks($exit_blocks, compatibleDirs, mapsToAvoid)
+        chosenBlock = validBlocks.sample
+
+        connectionDir = chosenBlock.getRandomAllowedDirection(compatibleDirs)
+
+        return chosenBlock,connectionDir
     end
 
     ##############################################################
