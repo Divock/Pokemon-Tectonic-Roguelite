@@ -1,3 +1,6 @@
+##############################################################
+# Configuration
+##############################################################
 VALID_FORMS = [
     [:DARMANITAN,1],
     [:GDARMANITAN,1],
@@ -12,22 +15,40 @@ VALID_FORMS = [
     [:SAWSBUCK,3],
 ]
 
-STARTING_BLOCK_MAP_IDS = [
-    21,
-    28,
-]
-
-CONTENT_BLOCK_MAP_IDS = [
-    27,
-    30,
-]
-
-EXIT_BLOCK_MAP_IDS = [
-    24,
-    29,
-]
+STARTING_BLOCKS_CATEGORY_MAP_ID = 22
+CONTENT_BLOCK_CATEGORY_MAP_ID = 26
+EXIT_BLOCK_CATEGORY_MAP_ID = 25
 
 STARTING_TRAINER_HEALTH = 20
+
+##############################################################
+# Load blocks
+##############################################################
+$blocks_loaded = false
+$starting_block_map_ids = []
+$content_block_map_ids = []
+$exit_block_map_ids = []
+
+def loadBlockMapIDs
+    mapInfos = pbLoadMapInfos
+    mapInfos.each do |infoEntry|
+        mapID = infoEntry[0]
+        mapInfo = infoEntry[1]
+        next unless mapInfo.parent_id > 0
+
+        case mapInfo.parent_id
+        when STARTING_BLOCKS_CATEGORY_MAP_ID
+            $starting_block_map_ids.push(mapID)
+            echoln("Loaded starting block: #{mapID}")
+        when CONTENT_BLOCK_CATEGORY_MAP_ID
+            $content_block_map_ids.push(mapID)
+            echoln("Loaded content block: #{mapID}")
+        when EXIT_BLOCK_CATEGORY_MAP_ID
+            $exit_block_map_ids.push(mapID)
+            echoln("Loaded exit block: #{mapID}")
+        end
+    end
+end
 
 ##############################################################
 # Game mode class
@@ -280,18 +301,10 @@ class TectonicRogueGameMode
         transferPlayerToEvent(spawningEvent.id,Up,mapID)
     end
 
-    def chooseNextFloor
-        newFloor = nil
-        while newFloor.nil? || newFloor == @currentFloorMapID
-            newFloor = getRandomStartingBlockMapID
-        end
-        return newFloor
-    end
-
     def getRandomStartingBlockMapID
         blockID = nil
         while blockID.nil? || @currentFloorMaps.include?(blockID)
-            blockID = STARTING_BLOCK_MAP_IDS.sample
+            blockID = $starting_block_map_ids.sample
         end
         return blockID
     end
@@ -299,7 +312,7 @@ class TectonicRogueGameMode
     def getRandomContentBlockMapID
         blockID = nil
         while blockID.nil? || @currentFloorMaps.include?(blockID)
-            blockID = CONTENT_BLOCK_MAP_IDS.sample
+            blockID = $content_block_map_ids.sample
         end
         return blockID
     end
@@ -307,7 +320,7 @@ class TectonicRogueGameMode
     def getRandomExitBlockMapID
         blockID = nil
         while blockID.nil? || @currentFloorMaps.include?(blockID)
-            blockID = EXIT_BLOCK_MAP_IDS.sample
+            blockID = $exit_block_map_ids.sample
         end
         return blockID
     end
@@ -338,6 +351,8 @@ class TectonicRogueGameMode
     end
 
     def generateNewFloor
+        loadBlockMapIDs unless $blocks_loaded
+
         @currentFloorMaps = []
 
         startingBlockID = getRandomStartingBlockMapID
@@ -536,6 +551,12 @@ end
 
 def reloadValidSpecies
     $TectonicRogue.loadValidSpecies
+end
+
+def pokeballInteraction
+    pbMessage(_INTL("Choose a Pokemon."))
+    chooseGiftPokemon
+    setMySwitch('A')
 end
 
 def chooseGiftPokemon(numberOfChoices = 3)
