@@ -354,27 +354,33 @@ class TectonicRogueGameMode
     end
 
     def generateNewFloor
-        oldFloorBlocks = @floorBlocks
+        mapsToAvoid = @floorBlocks
         
         resetFloor
 
         # Generate the starting block
-        startingBlock,nextDir = selectNewStartingBlock(oldFloorBlocks)
+        startingBlock,nextDir = selectNewStartingBlock(mapsToAvoid)
         @floorBlocks.push(startingBlock)
+        mapsToAvoid.push(startingBlock.map_id)
 
         previousBlock = startingBlock
 
         # Generate the content block
         contentBlocksThisFloor.times do |i|
-            nextContentBlock,connectionDir,nextDir = selectNewContentBlock([nextDir],oldFloorBlocks)
+            nextContentBlock,connectionDir,nextDir = selectNewContentBlock([nextDir],mapsToAvoid)
+
             @floorBlocks.push(startingBlock)
+            mapsToAvoid.push(nextContentBlock.map_id)
+
             @blockConnections.push([previousBlock,nextContentBlock,connectionDir])
 
             previousBlock = nextContentBlock
         end
 
         # Generate the exit block
-        exitBlock,connectionDir = selectNewExitBlock([nextDir],oldFloorBlocks)
+        exitBlock,connectionDir = selectNewExitBlock([nextDir],mapsToAvoid)
+        @floorBlocks.push(exitBlock)
+        mapsToAvoid.push(exitBlock.map_id)
         @blockConnections.push([previousBlock,exitBlock,connectionDir])
 
         loadCurrentFloor
@@ -389,9 +395,12 @@ class TectonicRogueGameMode
     def loadCurrentFloor
         MapFactoryHelper.clearConnections
         @blockConnections.each do |blockConnection|
-            mapID_A = blockConnection[0].map_id
-            mapID_B = blockConnection[1].map_id
+            blockA = blockConnection[0]
+            blockB = blockConnection[1]
             direction = blockConnection[2]
+            echoln("Block #{blockA.designation} connects to #{blockB.designation} on its #{direction}")
+            mapID_A = blockA.map_id
+            mapID_B = blockB.map_id
             connectionChar = getConnectionCharForDir(direction)
             MapFactoryHelper.addMapConnection(mapID_A,mapID_B,connectionChar)
         end
@@ -407,6 +416,19 @@ class TectonicRogueGameMode
         return [:north, :south, :east, :west]
     end
 
+    def getOppositeDir(dir)
+        case dir
+        when :north
+            return :south
+        when :south
+            return :north
+        when :east
+            return :west
+        when :west
+            return :east
+        end
+    end
+
     def getConnectionCharForDir(dir)
         case dir
         when :north
@@ -418,6 +440,14 @@ class TectonicRogueGameMode
         when :west
             return "W"
         end
+    end
+
+    def invertDirs(dirArray)
+        newArray = []
+        dirArray.each do |dir|
+            newArray.push(getOppositeDir(dir))
+        end
+        return newArray
     end
 
     def getValidBlocks(blockArray = [], compatibleDirs = [], mapsToAvoid = [])
@@ -434,28 +464,32 @@ class TectonicRogueGameMode
         validBlocks = getValidBlocks($starting_blocks, allDirs, mapsToAvoid)
         chosenBlock = validBlocks.sample
 
-        nextDir = chosenBlock.getRandomOtherDirection
+        outgoingDirForThis = chosenBlock.getRandomOtherDirection
 
-        return chosenBlock,nextDir
+        return chosenBlock,outgoingDirForThis
     end
 
-    def selectNewContentBlock(compatibleDirs = [], mapsToAvoid = [])
-        validBlocks = getValidBlocks($content_blocks, compatibleDirs, mapsToAvoid)
+    def selectNewContentBlock(outgoingDirsFromPrevious = [], mapsToAvoid = [])
+        ingoingDirsForThis = invertDirs(outgoingDirsFromPrevious)
+        validBlocks = getValidBlocks($content_blocks, ingoingDirsForThis, mapsToAvoid)
         chosenBlock = validBlocks.sample
 
-        connectionDir = chosenBlock.getRandomAllowedDirection(compatibleDirs)
-        nextDir = chosenBlock.getRandomOtherDirection([connectionDir])
+        ingoingDirForThis = chosenBlock.getRandomAllowedDirection(ingoingDirsForThis)
+        outgoingDirForPrevious = getOppositeDir(ingoingDirForThis)
+        outgoingDirForThis = chosenBlock.getRandomOtherDirection([ingoingDirForThis])
 
-        return chosenBlock,connectionDir,nextDir
+        return chosenBlock,outgoingDirForPrevious,outgoingDirForThis
     end
 
-    def selectNewExitBlock(compatibleDirs = [], mapsToAvoid = [])
-        validBlocks = getValidBlocks($exit_blocks, compatibleDirs, mapsToAvoid)
+    def selectNewExitBlock(outgoingDirsFromPrevious = [], mapsToAvoid = [])
+        ingoingDirsForThis = invertDirs(outgoingDirsFromPrevious)
+        validBlocks = getValidBlocks($exit_blocks, ingoingDirsForThis, mapsToAvoid)
         chosenBlock = validBlocks.sample
 
-        connectionDir = chosenBlock.getRandomAllowedDirection(compatibleDirs)
+        ingoingDirForThis = chosenBlock.getRandomAllowedDirection(ingoingDirsForThis)
+        outgoingDirForPrevious = getOppositeDir(ingoingDirForThis)
 
-        return chosenBlock,connectionDir
+        return chosenBlock,outgoingDirForPrevious
     end
 
     ##############################################################
